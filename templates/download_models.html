@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Download Models</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="../static/bootstrap-5.3.8-dist/css/bootstrap.min.css">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <style>
+    body { background: #f8f9fa; }
+    .card { border: 0; border-radius: 16px; }
+    .status-dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      display: inline-block; margin-right: 6px;
+    }
+    .status-not_started { background: #6c757d; }
+    .status-running { background: #0d6efd; animation: pulse 1.5s infinite; }
+    .status-done { background: #198754; }
+    .status-error { background: #dc3545; }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+    #fileBox {
+      max-height: 300px;
+      overflow-y: auto;
+      background: #fff;
+      border-radius: 12px;
+    }
+    .file-item {
+      font-family: ui-monospace, monospace;
+      font-size: 0.875rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container py-5">
+    <div class="row justify-content-center">
+      <div class="col-lg-7">
+        <div class="card shadow-sm">
+          <div class="card-body p-4">
+            <div class="d-flex align-items-center mb-3">
+              <i class="bi bi-cloud-arrow-down-fill fs-2 text-primary me-3"></i>
+              <div>
+                <h3 class="mb-1 fw-bold">Download Models</h3>
+                <p class="text-muted mb-0">Download all ML models to the server</p>
+              </div>
+            </div>
+
+            <button id="startBtn" class="btn btn-primary btn-lg w-100 mb-4">
+              <i class="bi bi-play-fill me-2"></i>Start Download
+            </button>
+
+            <div class="d-flex align-items-center mb-3">
+              <span class="status-dot status-not_started" id="statusDot"></span>
+              <div>
+                <div class="fw-semibold">Status: <span id="state">not_started</span></div>
+                <small class="text-muted" id="message">—</small>
+              </div>
+            </div>
+
+            <div id="progressBar" class="progress mb-3 d-none" style="height: 6px;">
+              <div class="progress-bar progress-bar-striped progress-bar-animated" style="width: 100%"></div>
+            </div>
+
+            <div class="border rounded-3 p-3" id="fileBox">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="fw-semibold">
+                  <i class="bi bi-folder2-open me-1"></i>models/
+                </span>
+                <span class="badge bg-secondary rounded-pill" id="fileCount">0 files</span>
+              </div>
+              <div id="fileList" class="text-muted small">No files yet</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast-container position-fixed bottom-0 end-0 p-3">
+    <div id="liveToast" class="toast border-0" role="alert">
+      <div class="d-flex">
+        <div class="toast-body d-flex align-items-center">
+          <i class="bi bi-check-circle-fill me-2"></i>
+          <span id="toastMsg">Success</span>
+        </div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    const startBtn = document.getElementById('startBtn');
+    const stateEl = document.getElementById('state');
+    const msgEl = document.getElementById('message');
+    const countEl = document.getElementById('fileCount');
+    const listEl = document.getElementById('fileList');
+    const statusDot = document.getElementById('statusDot');
+    const progressBar = document.getElementById('progressBar');
+    const toastEl = document.getElementById('liveToast');
+    const toastMsg = document.getElementById('toastMsg');
+    const toast = new bootstrap.Toast(toastEl);
+
+    let pollInterval = null;
+    let lastState = null;
+    let lastFiles = [];
+
+    function showToast(msg, isError = false) {
+      toastMsg.textContent = msg;
+      toastEl.className = `toast align-items-center text-bg-${isError ? 'danger' : 'success'} border-0`;
+      toast.show();
+    }
+
+    function updateUI(j) {
+      const currentState = j.state || 'unknown';
+      const files = j.available_files || j.files || [];
+
+      // Only update state if it changed - prevents flicker
+      if (currentState !== lastState) {
+        stateEl.textContent = currentState;
+        statusDot.className = `status-dot status-${currentState}`;
+        
+        if (currentState === 'running') {
+          progressBar.classList.remove('d-none');
+          startBtn.disabled = true;
+          startBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Downloading...';
+        } else {
+          progressBar.classList.add('d-none');
+          startBtn.disabled = currentState === 'running';
+          startBtn.innerHTML = '<i class="bi bi-play-fill me-2"></i>Start Download';
+          
+          if (currentState === 'done' && lastState === 'running') {
+            showToast('All models downloaded successfully');
+          }
+          if (currentState === 'error' && lastState === 'running') {
+            showToast('Download failed', true);
+          }
+        }
+        lastState = currentState;
+      }
+
+      msgEl.textContent = j.message || '—';
+
+      // Only update file list if it changed
+      if (JSON.stringify(files) !== JSON.stringify(lastFiles)) {
+        countEl.textContent = `${files.length} file${files.length !== 1 ? 's' : ''}`;
+        if (files.length === 0) {
+          listEl.innerHTML = '<span class="text-muted">No files yet</span>';
+        } else {
+          listEl.innerHTML = files.map(f => 
+            `<div class="file-item py-1"><i class="bi bi-file-earmark-code text-primary me-2"></i>${f}</div>`
+          ).join('');
+        }
+        lastFiles = files;
+      }
+
+      // Stop polling when done or error
+      if (currentState === 'done' || currentState === 'error') {
+        stopPolling();
+      }
+    }
+
+    async function fetchStatus() {
+      try {
+        const r = await fetch('/download-status');
+        const j = await r.json();
+        updateUI(j);
+      } catch (e) {
+        updateUI({ state: 'error', message: e.toString() });
+        stopPolling();
+      }
+    }
+
+    function startPolling() {
+      if (pollInterval) return;
+      fetchStatus(); // immediate
+      pollInterval = setInterval(fetchStatus, 2000);
+    }
+
+    function stopPolling() {
+      if (pollInterval) {
+        clearInterval(pollInterval);
+        pollInterval = null;
+      }
+    }
+
+    startBtn.addEventListener('click', async () => {
+      startBtn.disabled = true;
+      try {
+        const r = await fetch('/download-models/start', { method: 'POST' });
+        const j = await r.json();
+        if (!r.ok) {
+          showToast(j.message || 'Failed to start', true);
+          startBtn.disabled = false;
+        } else {
+          showToast('Download started');
+          startPolling(); // start polling only after successful start
+        }
+      } catch (e) {
+        showToast('Network error: ' + e, true);
+        startBtn.disabled = false;
+      }
+    });
+
+    // Initial load - check status once but don't auto-poll
+    fetchStatus();
+  </script>
+</body>
+</html>

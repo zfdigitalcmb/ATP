@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>O-Ring Assembly - Error</title>
+    <link rel="stylesheet" href="../static/bootstrap-5.3.8-dist/css/bootstrap.min.css">
+</head>
+<body>
+    <div class="container mt-5">
+        <div class="alert alert-danger text-center">
+            <h4>Error in sub-task!</h4>
+            <p>{{ error_message }}</p>
+        </div>
+        <form action="/submit_task_oring_sml" method="post" enctype="multipart/form-data">
+            <input type="hidden" name="order_number" value="{{ order_number }}">
+            <input type="hidden" name="employee_id" value="{{ employee_id }}">
+            <input type="hidden" name="model_name" value="{{ model_name }}">
+            <input type="hidden" name="subtask" value="{{ subtask }}">
+            <div class="form-group">
+                <label for="image">Upload New Image:</label>
+                <input type="file" class="form-control-file" id="image" name="image" accept="image/*" required>
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">Retry Task</button>
+        </form>
+    </div>
+</body>
+</html>

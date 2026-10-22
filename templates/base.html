@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{% block title %}IPV AI - Internal Parts Verification{% endblock %}</title>
+
+    <!-- Bootstrap 5 -->
+<link rel="stylesheet" href="../static/bootstrap-5.3.8-dist/css/bootstrap.min.css">
+
+    <!-- Optional: Font Awesome -->
+    <!-- <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
+          integrity="sha512-..." crossorigin="anonymous" referrerpolicy="no-referrer" /> -->
+
+    <style>
+      /* small helpful defaults */
+      body { padding-top: 70px; }
+      .container-fluid-main { max-width: 1100px; margin: 0 auto; }
+      .flash-msg { z-index: 1050; position: relative; }
+      .small-muted { font-size: .9rem; color: #666; }
+      .nav-brand-logo { height: 30px; margin-right: 8px; }
+      pre.traceback { white-space: pre-wrap; background:#f8f9fa; padding:12px; border-radius:4px; }
+    </style>
+
+    {% block head_extras %}{% endblock %}
+  </head>
+  <body>
+    <!-- NAVBAR -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary fixed-top">
+      <div class="container-fluid container-fluid-main">
+        <a class="navbar-brand d-flex align-items-center" href="{{ url_for('index') }}">
+          <!-- if you have a logo, place in static/images/zf.png or change src -->
+          <img src="{{ url_for('static', filename='images/zf.png') }}" alt="logo" class="nav-brand-logo" onerror="this.style.display='none'">
+          IPV-AI
+        </a>
+
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav" aria-controls="mainNav" aria-expanded="false" aria-label="Toggle navigation">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <div class="collapse navbar-collapse" id="mainNav">
+          <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+            <li class="nav-item"><a class="nav-link" href="{{ url_for('orings.oring_sml_index') }}">Run IPV</a></li>
+            <li class="nav-item"><a class="nav-link" href="{{ url_for('orings.summary') }}">Summary</a></li>
+            <li class="nav-item"><a class="nav-link" href="{{ url_for('orings.view_logs') }}">Logs</a></li>
+
+            <!-- admin links -->
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" id="adminMenu" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                Admin
+              </a>
+              <ul class="dropdown-menu" aria-labelledby="adminMenu">
+                <li><a class="dropdown-item" href="{{ url_for('admin_ipv.list_templates') }}">Templates</a></li>
+                <li><a class="dropdown-item" href="{{ url_for('admin_ipv.list_logs') }}">Logs (admin)</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="{{ url_for('download_models_page') }}">Models</a></li>
+              </ul>
+            </li>
+          </ul>
+
+          <ul class="navbar-nav ms-auto">
+            {% if session.get('username') or session.get('user') %}
+              <li class="nav-item dropdown">
+                <a class="nav-link dropdown-toggle" href="#" id="userMenu" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                  <i class="fa fa-user-circle"></i>
+                  {{ session.get('full_name') or session.get('username') or session.get('user') }}
+                </a>
+                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userMenu">
+                  <li><a class="dropdown-item" href="/profile">Profile</a></li>
+                  <li><a class="dropdown-item" href="/logout">Logout</a></li>
+                </ul>
+              </li>
+            {% else %}
+              <li class="nav-item"><a class="nav-link" href="/login">Sign in</a></li>
+            {% endif %}
+          </ul>
+        </div>
+      </div>
+    </nav>
+
+    <!-- PAGE CONTENT -->
+    <main class="container container-fluid-main">
+      <!-- Flash messages -->
+      <div class="flash-msg">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            <div class="mt-2">
+              {% for category, message in messages %}
+                <div class="alert alert-{{ 'success' if category=='success' else ('warning' if category=='warning' else ('danger' if category=='danger' else 'info')) }} alert-dismissible fade show" role="alert">
+                  {{ message|safe }}
+                  <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+              {% endfor %}
+            </div>
+          {% endif %}
+        {% endwith %}
+      </div>
+
+      {% block content %}
+      <!-- page specific content -->
+      {% endblock %}
+    </main>
+
+    <footer class="mt-5 py-3 bg-light">
+      <div class="container container-fluid-main d-flex justify-content-between small-muted">
+        <div>© {{ (config.SITE_OR_YEAR if config and config.SITE_OR_YEAR is defined else "") or "ZF CMB" }} {{ now().year if now is defined else "" }}</div>
+        <div>IPV-AI • Internal Parts Verification</div>
+      </div>
+    </footer>
+
+    <!-- Bootstrap JS (with Popper) -->
+   <script src="{{ url_for('static', filename='bootstrap-5.3.8-dist/bootstrap.bundle.min.js') }}"></script>
+
+    <!-- Optional: jQuery for any legacy inline scripts (not required for bootstrap) -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" crossorigin="anonymous"></script>
+
+    <!-- small helper to auto-focus first input (optional) -->
+    <script>
+      document.addEventListener('DOMContentLoaded', function () {
+        var el = document.querySelector('form input:not([type=hidden])');
+        if (el) el.focus();
+      });
+    </script>
+
+    {% block scripts %}{% endblock %}
+  </body>
+</html>

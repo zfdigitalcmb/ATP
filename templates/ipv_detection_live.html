@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Live O-Ring Detection</title>
+  <style>
+    body { font-family: Arial; background:#0b1220; color:#fff; text-align:center }
+    .wrap { max-width:900px; margin:auto }
+    .camera { position:relative; margin-top:20px }
+    video, canvas { width:100%; border-radius:12px }
+    canvas { position:absolute; left:0; top:0 }
+    .badge {
+      margin-top:12px;
+      padding:10px 20px;
+      font-size:20px;
+      border-radius:8px;
+      display:inline-block;
+    }
+    .ok { background:#22c55e }
+    .nok { background:#ef4444 }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h2>🔴 Live Detection Test</h2>
+
+  <div>
+    Required Count:
+    <input id="requiredQty" type="number" value="2" style="width:80px">
+  </div>
+
+  <div class="camera">
+    <video id="video" autoplay playsinline></video>
+    <canvas id="overlay"></canvas>
+  </div>
+
+  <div id="status" class="badge nok">NOK</div>
+</div>
+<script>
+const video = document.getElementById("video");
+const overlay = document.getElementById("overlay");
+const ctx = overlay.getContext("2d");
+const statusBadge = document.getElementById("status");
+
+let autoCaptured = false;
+
+// ---- CAMERA ----
+navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+  .then(stream => video.srcObject = stream);
+
+video.addEventListener("loadedmetadata", () => {
+  overlay.width = video.videoWidth;
+  overlay.height = video.videoHeight;
+});
+
+// ---- DETECTION LOOP ----
+async function detectFrame() {
+  if (video.videoWidth === 0 || autoCaptured) return;
+
+  const c = document.createElement("canvas");
+  c.width = video.videoWidth;
+  c.height = video.videoHeight;
+  c.getContext("2d").drawImage(video, 0, 0);
+
+  const blob = await new Promise(r => c.toBlob(r, "image/jpeg", 0.6));
+
+  const fd = new FormData();
+  fd.append("image", blob);
+  fd.append("model_yolo", "YOUR_MODEL.pt");
+  fd.append("class_name", "oring");
+  fd.append("conf", "0.65");
+
+  const r = await fetch("/ipv-detection-live/frame", {
+    method: "POST",
+    body: fd
+  });
+
+  const data = await r.json();
+  drawBoxes(data.boxes);
+  updateStatus(data.count);
+}
+
+// ---- DRAW BOXES ----
+function drawBoxes(boxes) {
+  ctx.clearRect(0, 0, overlay.width, overlay.height);
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = "#22c55e";
+
+  boxes.forEach(b => {
+    ctx.strokeRect(
+      b.x1, b.y1,
+      b.x2 - b.x1,
+      b.y2 - b.y1
+    );
+  });
+}
+
+// ---- STATUS + AUTO CAPTURE ----
+function updateStatus(count) {
+  const required = parseInt(document.getElementById("requiredQty").value);
+
+  if (count === required) {
+    statusBadge.textContent = "OK";
+    statusBadge.className = "badge ok";
+
+    if (!autoCaptured) {
+      autoCaptured = true;
+      autoCapture();
+    }
+  } else {
+    statusBadge.textContent = `NOK (${count}/${required})`;
+    statusBadge.className = "badge nok";
+  }
+}
+
+// ---- AUTO CAPTURE ----
+function autoCapture() {
+  const c = document.createElement("canvas");
+  c.width = video.videoWidth;
+  c.height = video.videoHeight;
+  c.getContext("2d").drawImage(video, 0, 0);
+
+  const img = c.toDataURL("image/jpeg", 0.9);
+  console.log("📸 Auto captured image", img.substring(0,50));
+}
+
+// run every 400ms
+setInterval(detectFrame, 400);
+</script>
+</body>
+</html>

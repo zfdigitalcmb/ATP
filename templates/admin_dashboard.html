@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container py-4">
+  <h3>Welcome, {{ admin }} 👋</h3>
+  <p>You're now logged in to the IPV Admin panel.</p>
+  <hr>
+  <div class="list-group">
+    <a href="{{ url_for('admin_ipv.list_templates') }}" class="list-group-item list-group-item-action">
+      <i class="fa fa-database"></i> Manage Templates
+    </a>
+    <a href="{{ url_for('admin_ipv.list_logs') }}" class="list-group-item list-group-item-action">
+      <i class="fa fa-list"></i> View Logs
+    </a>
+    <a href="{{ url_for('download_models_page') }}" class="list-group-item list-group-item-action">
+      <i class="fa fa-file-download"></i> Manage YOLO Models
+    </a>
+    <a href="{{ url_for('admin_auth.logout_admin') }}" class="list-group-item list-group-item-action text-danger">
+      <i class="fa fa-sign-out-alt"></i> Logout
+    </a>
+  </div>
+</div>
+{% endblock %}

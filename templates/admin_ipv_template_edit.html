@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container py-3">
+  <h3>{{ 'Create' if mode=='create' else 'Edit' }} Template</h3>
+  <form method="post">
+    <div class="mb-2">
+      <label>Model</label>
+      <input class="form-control" name="model" value="{{ template.model or template.get('model','') }}" />
+    </div>
+    <div class="mb-2">
+      <label>Stage</label>
+      <input class="form-control" name="stage" value="{{ template.stage or template.get('stage','') }}" />
+    </div>
+    <div class="mb-2">
+      <label>Subtask</label>
+      <input class="form-control" name="subtask" value="{{ template.subtask or template.get('subtask','') }}" />
+    </div>
+    <div class="mb-2">
+      <label>Required O-rings</label>
+      <input class="form-control" name="required_orings" value="{{ template.required_orings or template.get('required_orings','') }}" />
+    </div>
+    <div class="mb-2">
+      <label>Class to find</label>
+      <input class="form-control" name="class_to_find" value="{{ template.class_to_find or template.get('class_to_find','') }}" />
+    </div>
+    <div class="mb-2">
+      <label>Class index</label>
+      <input class="form-control" name="class_index" value="{{ template.class_index or template.get('class_index','') }}" />
+    </div>
+    <div class="mb-2">
+      <label>Model YOLO filename</label>
+      <input class="form-control" name="model_yolo" value="{{ template.model_yolo or template.get('model_yolo','') }}" />
+    </div>
+    <div class="mb-2">
+      <label>Sample image URL</label>
+      <input class="form-control" name="sample_image" value="{{ template.sample_image or template.get('sample_image','') }}" />
+    </div>
+    <div class="mb-2">
+      <label>Description</label>
+      <textarea class="form-control" name="description">{{ template.description or template.get('description','') }}</textarea>
+    </div>
+    <div>
+      <button class="btn btn-success" type="submit">Save</button>
+      <a class="btn btn-secondary" href="{{ url_for('admin_ipv.list_templates') }}">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

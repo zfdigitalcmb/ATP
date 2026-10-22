@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>O-Ring Assembly - Start Task</title>
+
+  <!-- Bootstrap 5 + Font Awesome + jQuery -->
+  <link rel="stylesheet" href="../static/bootstrap-5.3.8-dist/css/bootstrap.min.css">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+  <style>
+    :root{
+      --accent:#1e3a8a;
+      --glass-bg: rgba(255,255,255,0.92);
+      --muted:#64748b;
+    }
+    body{
+      background: linear-gradient(135deg,#e3f2fd,#ffffff 50%,#dceefb);
+      font-family: "Poppins","Segoe UI",Arial,sans-serif;
+      color:#0b1220;
+      min-height:100vh;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:2rem;
+    }
+
+    .glass {
+      background: var(--glass-bg);
+      border-radius:16px;
+      box-shadow: 0 10px 30px rgba(2,6,23,0.08);
+      padding:1.25rem;
+      max-width:1250px;
+      width:100%;
+      backdrop-filter: blur(8px);
+    }
+
+    .page-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; gap:1rem; }
+    .left-head { display:flex; align-items:center; gap:.75rem; }
+    .page-head h2 { color:var(--accent); margin:0; font-weight:600; }
+    .back-btn { color:var(--accent); text-decoration:none; font-weight:600; display:inline-flex; align-items:center; gap:.5rem; }
+    .log-link { color:var(--accent); text-decoration:none; font-weight:600; }
+    .note { color:var(--muted); font-size:0.9rem; }
+
+    /* two-column layout */
+    .capture-flex { display:flex; gap:1.25rem; align-items:stretch; flex-wrap:nowrap; }
+    .sample-box, .camera-box { background: #fff; border-radius:12px; padding:1rem; border:1px solid rgba(11,18,32,0.06); flex:1 1 50%; display:flex; flex-direction:column; }
+    .sample-image { width:100%; height:360px; object-fit:contain; border-radius:10px; background:#f8fafc; cursor:pointer; border:1px dashed rgba(0,0,0,0.06); }
+    .camera-view { position:relative; border-radius:10px; overflow:hidden; height:360px; background:#000; }
+    #video, #capturedPreview { width:100%; height:100%; object-fit:cover; display:block; }
+    #capturedPreview { display:none; }
+
+    .controls { display:flex; gap:0.6rem; margin-bottom:.75rem; }
+    .controls .btn { flex:1 1 auto; }
+
+    .thumbnail-row { display:flex; gap:.5rem; margin-top:.75rem; flex-wrap:wrap; align-items:center; }
+    .thumb { width:86px; height:66px; object-fit:cover; border-radius:6px; border:1px solid rgba(0,0,0,0.06); cursor:pointer; }
+
+    .spinner-overlay {
+      position:absolute;
+      inset:0;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      background: linear-gradient(0deg, rgba(255,255,255,0.4), rgba(255,255,255,0.25));
+      z-index:30;
+      backdrop-filter: blur(3px);
+    }
+
+    .stage-buttons { display:flex; gap:.6rem; flex-wrap:wrap; margin-bottom:.75rem; }
+    .stage-btn { padding:.45rem .9rem; border-radius:10px; background:linear-gradient(180deg,#fff,#f1f5f9); color:var(--accent); font-weight:600; border:1px solid rgba(30,58,138,0.12); cursor:pointer; }
+    .stage-btn.active{ background: linear-gradient(90deg,var(--accent),#2563eb); color:#fff; box-shadow:0 4px 12px rgba(30,58,138,0.12); }
+
+    .form-label{ font-weight:600; color:#0b1220; }
+
+    /* bubbles */
+    .bubbles { margin-top:8px; display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+    .bubble { padding:.35rem .65rem; border-radius:999px; background:#f1f5f9; color:var(--accent); border:1px solid rgba(30,58,138,0.08); cursor:pointer; font-weight:600; user-select:none; }
+    .bubble.active { background: linear-gradient(90deg,var(--accent),#2563eb); color:#fff; box-shadow:0 6px 18px rgba(37,99,235,0.12); }
+
+    .error-note { color:#ff3333; font-size:0.9rem; margin-top:6px; }
+
+    @media (max-width:991px){
+      .capture-flex{ flex-direction:column; }
+      .sample-image, .camera-view{ height:240px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="glass">
+    <div class="page-head">
+      <div class="left-head">
+        <!-- Back button separated -->
+        <a class="back-btn" href="javascript:history.back()"><i class="fa fa-chevron-left"></i> Back</a>
+        <h2>Internal Parts Verification AI — Start Task</h2>
+      </div>
+
+      <!-- Log / Resume link separated on the right -->
+      <div style="text-align:right;">
+        <a class="log-link" href="/oring-internal-logs"><i class="fa fa-list-alt me-1"></i>Log / Resume Order</a>
+        <div class="note">Camera default: <strong>Environment</strong></div>
+      </div>
+    </div>
+
+    <button class="bubble" id="bot-btn">Bot</button>
+    <div id="deviceListContainer" style="margin-top:.75rem"></div>
+
+    <form id="oringForm" action="{{ url_for('orings.submit_task') }}" method="post" enctype="multipart/form-data" autocomplete="off">
+      <div class="row mb-3 g-2">
+        <div class="col-md-6">
+          <label class="form-label" for="order_number">Order Number (must contain ZM & CM)</label>
+          <input id="order_number" name="order_number" class="form-control" required
+                 placeholder="ZM+CM">
+          <div id="orderError" class="error-note" style="display:none;"></div>
+          <div id="orderBubbles" class="bubbles" aria-live="polite"></div>
+          <div class="form-text note">Pattern: ZM + digits + CM + digits.</div>
+        </div>
+
+        <div class="col-md-3">
+          <label class="form-label" for="employee_id">Employee ID (username)</label>
+          <input id="employee_id" name="employee_id" class="form-control" required placeholder="username or E0xxxx">
+          <div id="operatorError" class="error-note" style="display:none;"></div>
+          <div id="operatorBubbles" class="bubbles" aria-live="polite"></div>
+        </div>
+
+        <div class="col-md-3">
+          <label class="form-label" for="model_name">Model</label>
+          <select id="model_name" name="model_name" class="form-control" required>
+            <option value="">-- Select Model --</option>
+            {% for model in orings_data %}
+              <option value="{{ model }}">{{ model }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">Stage</label>
+        <div id="stageButtons" class="stage-buttons">
+          <div class="note">Select a model to load stage.</div>
+        </div>
+        <div id="stageNote" class="note" style="margin-top:6px"></div>
+      </div>
+
+      <!-- inside <form id="oringForm">, next to other hidden inputs -->
+      <input type="hidden" id="stage_input" name="stage" value="{{ stage or '' }}">
+
+      <div class="capture-flex">
+        <!-- LEFT: Sample and subtask -->
+        <div class="sample-box">
+          <label class="form-label">Subtask</label>
+          <select id="subtask" name="subtask" class="form-control mb-3" required>
+            <option value="">-- Select Subtask --</option>
+          </select>
+
+          <label class="form-label">Sample Image (tap to enlarge)</label>
+          <img id="sample_image" class="sample-image" src="" alt="Sample image (click to enlarge)">
+          <div id="sample_meta" class="mt-2 note"></div>
+        </div>
+
+        <!-- RIGHT: Camera -->
+        <div class="camera-box">
+          <div class="controls">
+            <button type="button" id="captureButton" class="btn btn-primary"><i class="fa fa-camera me-1"></i> Capture</button>
+            <button type="button" id="retakeButton" class="btn btn-outline-secondary" style="display:none;"><i class="fa fa-undo me-1"></i>Retake</button>
+            <button type="button" id="flipButton" class="btn btn-outline-secondary"><i class="fa fa-sync-alt me-1"></i>Flip</button>
+          </div>
+
+          <div class="camera-view mb-2" id="cameraView">
+            <div id="spinner" class="spinner-overlay" style="display:flex;">
+              <div class="text-center">
+                <div class="spinner-border text-primary" role="status" style="width:3rem;height:3rem"></div>
+                <div class="mt-2 note">Starting camera...</div>
+              </div>
+            </div>
+
+            <video id="video" autoplay playsinline muted></video>
+            <img id="capturedPreview" alt="Captured Preview">
+          </div>
+
+          <!-- <label class="form-label">Upload (optional)</label> -->
+           <button id="lockBtn" class="btn btn-outline-secondary mb-2">
+              🔒 Upload Image
+            </button>
+          <input id="image" name="image" type="file" accept="image/*" class="form-control mb-2" hidden>
+          <input type="hidden" id="image_data" name="image_data">
+          <div class="note">Captured image will attach automatically.</div>
+
+          <!-- Live thumbnails -->
+          <div class="mt-2">
+            <div class="form-label">Captured Thumbnails</div>
+            <div id="thumbnailRow" class="thumbnail-row">
+              <!-- thumbnails added here -->
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Submit expanded full width (removed Cancel) -->
+      <div class="row mt-3">
+        <div class="col-12">
+          <button type="submit" class="btn btn-success btn-lg btn-block w-100">Submit Task</button>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <!-- Sample Image Modal -->
+  <div class="modal fade" id="sampleModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content">
+        <div class="modal-body p-0">
+          <img id="sampleModalImg" src="" alt="Sample Large" style="width:100%; height:auto; display:block; object-fit:contain;">
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+  // Server-provided data (model -> {stage -> [subtask objects]})
+  const orings_data = {{ orings_data | tojson | safe }};
+
+  // Elements
+  const modelSelect = document.getElementById('model_name');
+  const stageButtonsDiv = document.getElementById('stageButtons');
+  const subtaskSelect = document.getElementById('subtask');
+  const sampleImage = document.getElementById('sample_image');
+  const sampleMeta = document.getElementById('sample_meta');
+
+  const video = document.getElementById('video');
+  const capturedPreview = document.getElementById('capturedPreview');
+  const captureButton = document.getElementById('captureButton');
+  const flipButton = document.getElementById('flipButton');
+  const retakeButton = document.getElementById('retakeButton');
+  const imageInput = document.getElementById('image');
+  const imageData = document.getElementById('image_data');
+  const thumbnailRow = document.getElementById('thumbnailRow');
+  const spinner = document.getElementById('spinner');
+
+  const orderBubbles = document.getElementById('orderBubbles');
+  const operatorBubbles = document.getElementById('operatorBubbles');
+  const orderError = document.getElementById('orderError');
+  const operatorError = document.getElementById('operatorError');
+  const stageInputElem = document.getElementById('stage_input');
+  const orderInput = document.getElementById('order_number');
+  const employeeInput = document.getElementById('employee_id');
+  const stageNote = document.getElementById('stageNote');
+
+  let stream = null;
+  let facingMode = 'environment';
+
+  // Start camera with spinner indication
+  async function startCamera() {
+    // show spinner
+    spinner.style.display = 'flex';
+    // stop old
+    if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+
+    const tryConstraints = async (constraints) => {
+      try {
+        const s = await navigator.mediaDevices.getUserMedia(constraints);
+        return s;
+      } catch(e) {
+        return null;
+      }
+    };
+
+    // prefer exact facingMode, fallback progressively
+    stream = await tryConstraints({ video: { facingMode: { exact: facingMode } }, audio: false })
+          || await tryConstraints({ video: { facingMode: facingMode }, audio: false })
+          || await tryConstraints({ video: true, audio: false });
+
+    if (stream) {
+      video.srcObject = stream;
+      video.play();
+      video.style.display = '';
+      capturedPreview.style.display = 'none';
+    } else {
+      // no camera available: show placeholder
+      video.style.display = 'none';
+    }
+    // hide spinner after small delay so it's visible briefly
+    setTimeout(()=> spinner.style.display = 'none', 350);
+  }
+
+  // init camera on load
+  startCamera();
+
+  flipButton.addEventListener('click', async () => {
+    facingMode = (facingMode === 'environment') ? 'user' : 'environment';
+    await startCamera();
+  });
+
+  // Capture flow
+  captureButton.addEventListener('click', () => {
+    if (!stream) return alert('Camera not available.');
+
+    const track = stream.getVideoTracks()[0];
+    const settings = track.getSettings ? track.getSettings() : {};
+    const w = settings.width || video.videoWidth || 1280;
+    const h = settings.height || video.videoHeight || 720;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+    capturedPreview.src = dataUrl;
+    capturedPreview.style.display = '';
+    video.style.display = 'none';
+    imageData.value = dataUrl;
+
+    // set file input so server receives file
+    canvas.toBlob(blob => {
+      const file = new File([blob], 'capture.jpg', { type: 'image/jpeg' });
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      imageInput.files = dt.files;
+      addThumbnail(dataUrl); // live thumbnail
+    }, 'image/jpeg', 0.9);
+
+    retakeButton.style.display = '';
+    captureButton.style.display = 'none';
+  });
+
+  // Retake
+  retakeButton.addEventListener('click', () => {
+    capturedPreview.style.display = 'none';
+    video.style.display = '';
+    imageData.value = '';
+    imageInput.value = '';
+    retakeButton.style.display = 'none';
+    captureButton.style.display = '';
+  });
+
+  // Upload file -> show preview and thumbnail
+  imageInput.addEventListener('change', (e) => {
+    const f = e.target.files && e.target.files[0];
+    if (!f) return;
+    const url = URL.createObjectURL(f);
+    capturedPreview.src = url;
+    capturedPreview.style.display = '';
+    video.style.display = 'none';
+    retakeButton.style.display = '';
+    captureButton.style.display = 'none';
+    imageData.value = ''; // we avoid converting huge file to base64
+    addThumbnail(url, false); // add thumbnail using blob URL
+  });
+
+  // Add thumbnail function
+  function addThumbnail(src, isDataUrl=true){
+    // create thumb element
+    const img = document.createElement('img');
+    img.src = src;
+    img.className = 'thumb';
+    img.loading = 'lazy';
+    // clicking thumbnail will open it in modal too
+    img.addEventListener('click', () => openLargePreview(src));
+    // prepend newest thumbnail
+    thumbnailRow.prepend(img);
+    // keep only last 6 thumbnails
+    while (thumbnailRow.children.length > 6) thumbnailRow.removeChild(thumbnailRow.lastChild);
+  }
+
+  // sample image click -> open modal
+  sampleImage.addEventListener('click', () => {
+    const src = sampleImage.src;
+    if (!src) return;
+    document.getElementById('sampleModalImg').src = src;
+    const modal = new bootstrap.Modal(document.getElementById('sampleModal'));
+    modal.show();
+  });
+
+  // open large preview from thumbnail -> reuse same modal
+  function openLargePreview(src){
+    document.getElementById('sampleModalImg').src = src;
+    const modal = new bootstrap.Modal(document.getElementById('sampleModal'));
+    modal.show();
+  }
+
+  // Model change -> populate stage buttons (max 3) and fetch ordernumbers
+  modelSelect.addEventListener('change', () => {
+    const model = modelSelect.value;
+    stageButtonsDiv.innerHTML = '';
+    subtaskSelect.innerHTML = '<option value="">-- Select Subtask --</option>';
+    sampleImage.src = ''; sampleMeta.textContent = '';
+    orderBubbles.innerHTML = '';
+    operatorBubbles.innerHTML = '';
+    orderError.style.display = 'none';
+    operatorError.style.display = 'none';
+    stageNote.textContent = '';
+
+    if (!model || !orings_data[model]) {
+      stageButtonsDiv.innerHTML = '<div class="note">Select a model to load stages (up to 3).</div>';
+      return;
+    }
+    const stages = Object.keys(orings_data[model] || {});
+    const toShow = stages.slice(0,3);
+    toShow.forEach(stage => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'stage-btn';
+      btn.textContent = stage;
+      btn.dataset.stage = stage;
+      btn.addEventListener('click', () => onStageClick(stage, btn));
+      stageButtonsDiv.appendChild(btn);
+    });
+    if (stages.length > 3) {
+      const more = document.createElement('div'); more.className='note'; more.style.marginLeft='6px';
+      more.textContent = `${stages.length} stages available — showing first 3.`;
+      stageButtonsDiv.appendChild(more);
+    }
+
+    // fetch order numbers for model and render bubbles
+    fetchOrderNumbersForModel(model);
+  });
+
+  function onStageClick(stage, btn) {
+    stageButtonsDiv.querySelectorAll('.stage-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+
+    // set hidden stage input so server receives it
+    if (stageInputElem) stageInputElem.value = stage;
+    stageNote.textContent = `Selected stage: ${stage}`;
+
+    // populate subtasks
+    const model = modelSelect.value;
+    subtaskSelect.innerHTML = '<option value="">-- Select Subtask --</option>';
+    const subtasks = orings_data[model][stage] || [];
+    subtasks.forEach(s => {
+      const opt = document.createElement('option');
+      opt.value = s.subtask;
+      opt.textContent = `Sub-Task ${s.subtask} • ${s.description || ''}`;
+      opt.dataset.item = JSON.stringify(s);
+      subtaskSelect.appendChild(opt);
+    });
+
+    // if order already selected, fetch operators immediately
+    const currentOrder = orderInput.value && orderInput.value.trim();
+    if (currentOrder) {
+      fetchOperators(model, currentOrder, stage);
+    } else {
+      // clear operator bubbles because stage changed
+      operatorBubbles.innerHTML = '';
+    }
+  }
+
+  // Show sample image when subtask selected
+  subtaskSelect.addEventListener('change', () => {
+    const opt = subtaskSelect.selectedOptions[0];
+    if (!opt || !opt.dataset.item) { sampleImage.src=''; sampleMeta.textContent=''; return; }
+    const s = JSON.parse(opt.dataset.item);
+    sampleImage.src = s.sample_image || '';
+    sampleMeta.textContent = `Required O-Rings: ${s.required_orings || '-'} • ${s.description || ''}`;
+  });
+
+  // Fetch order numbers for the selected model
+  async function fetchOrderNumbersForModel(model) {
+    orderBubbles.innerHTML = '';
+    orderError.style.display = 'none';
+    if (!model) return;
+    try {
+      const resp = await fetch(`/ordernumbers/${encodeURIComponent(model)}`);
+      if (!resp.ok) {
+        const txt = await resp.text().catch(()=>null);
+        throw new Error(`Server returned ${resp.status} ${resp.statusText} ${txt?'- '+txt:''}`);
+      }
+      const data = await resp.json();
+      if (!data || !Array.isArray(data.order_numbers)) {
+        throw new Error('Invalid response format');
+      }
+
+      if (data.order_numbers.length === 0) {
+        orderBubbles.innerHTML = '<div class="note">No recent orders for this model (last 7 days).</div>';
+        return;
+      }
+
+      data.order_numbers.forEach(ord => {
+        const b = document.createElement('div');
+        b.className = 'bubble';
+        b.textContent = ord;
+        b.title = `Use order ${ord}`;
+        b.addEventListener('click', () => {
+          // mark active
+          orderBubbles.querySelectorAll('.bubble').forEach(bb => bb.classList.remove('active'));
+          b.classList.add('active');
+
+          // fill input
+          orderInput.value = ord;
+
+          // if stage selected, fetch operators for that order+stage
+          const stage = stageInputElem.value;
+          if (stage) {
+            fetchOperators(model, ord, stage);
+            pairBot(model,stage)
+          } else {
+            operatorBubbles.innerHTML = '';
+          }
+        });
+        orderBubbles.appendChild(b);
+      });
+
+    } catch (err) {
+      orderError.style.display = '';
+      orderError.textContent = `Unable to load orders for model ${model}: ${err.message}`;
+      orderBubbles.innerHTML = '';
+    }
+  }
+
+  // Fetch operators for model + order + stage
+  async function fetchOperators(model, orderNumber, stage) {
+    operatorBubbles.innerHTML = '';
+    operatorError.style.display = 'none';
+    if (!model || !orderNumber || !stage) return;
+    try {
+      const url = `/operators/${encodeURIComponent(model)}/${encodeURIComponent(orderNumber)}/${encodeURIComponent(stage)}`;
+      const resp = await fetch(url);
+      if (!resp.ok) {
+        const txt = await resp.text().catch(()=>null);
+        throw new Error(`Server returned ${resp.status} ${resp.statusText} ${txt?'- '+txt:''}`);
+      }
+      const data = await resp.json();
+      // expected: { latest_operator: {...}, operators: [{id,full_name,username}, ...] }
+      const ops = (data && Array.isArray(data.operators)) ? data.operators : [];
+      if (ops.length === 0) {
+        operatorBubbles.innerHTML = '<div class="note">No operators found for this order & stage (last 7 days).</div>';
+        return;
+      }
+
+      // render bubbles (username shown, tooltip full name)
+      ops.forEach(op => {
+        const uname = op.username || (op.full_name ? op.full_name.replace(/\s+/g,'').toLowerCase() : '');
+        const label = uname || (op.full_name || `id:${op.id}`);
+        const b = document.createElement('div');
+        b.className = 'bubble';
+        b.textContent = label;
+        b.title = op.full_name || '';
+        b.addEventListener('click', () => {
+          // highlight
+          operatorBubbles.querySelectorAll('.bubble').forEach(bb => bb.classList.remove('active'));
+          b.classList.add('active');
+          // fill employee id with username (or id if username missing)
+          employeeInput.value = op.username || (op.id ? `id:${op.id}` : '');
+        });
+        operatorBubbles.appendChild(b);
+      });
+
+      // if server returned latest_operator, show it and pre-select
+      if (data.latest_operator && data.latest_operator.username) {
+        // try to mark matching bubble active and fill employee_input
+        const match = Array.from(operatorBubbles.children).find(ch => ch.textContent === data.latest_operator.username);
+        if (match) {
+          match.classList.add('active');
+          employeeInput.value = data.latest_operator.username;
+        } else {
+          // prepend a 'latest' bubble if username exists but wasn't in list
+          const l = document.createElement('div');
+          l.className = 'bubble active';
+          l.textContent = data.latest_operator.username;
+          l.title = `Latest: ${data.latest_operator.full_name || ''} @ ${data.latest_operator.ts || ''}`;
+          l.addEventListener('click', () => {
+            operatorBubbles.querySelectorAll('.bubble').forEach(bb => bb.classList.remove('active'));
+            l.classList.add('active');
+            employeeInput.value = data.latest_operator.username;
+          });
+          operatorBubbles.prepend(l);
+          employeeInput.value = data.latest_operator.username;
+        }
+      }
+
+    } catch (err) {
+      operatorError.style.display = '';
+      operatorError.textContent = `Unable to load operators: ${err.message}`;
+      operatorBubbles.innerHTML = '';
+    }
+  }
+
+  // When user manually types order number and blurs, try to load operators if stage selected
+  orderInput.addEventListener('blur', () => {
+    const orderVal = orderInput.value && orderInput.value.trim();
+    const model = modelSelect.value;
+    const stage = stageInputElem.value;
+    if (model && orderVal && stage) {
+      fetchOperators(model, orderVal, stage);
+    }
+  });
+
+  // Form validation: order pattern + subtask + image
+  document.getElementById('oringForm').addEventListener('submit', (e) => {
+    const orderVal = document.getElementById('order_number').value.trim();
+    const orderPattern = /^ZM\d+CM\d+(?:-S\d+)?$/i;
+    if (!orderPattern.test(orderVal)) {
+      e.preventDefault(); alert("Order Number invalid. Example: ZM129012345678CM0123 or ZM129012345678CM0123-S1"); return false;
+    }
+    if (!subtaskSelect.value) { e.preventDefault(); alert("Select a subtask."); return false; }
+    const hasImage = !!imageData.value || (imageInput.files && imageInput.files.length > 0);
+    if (!hasImage) { e.preventDefault(); alert("Capture or upload an image before submitting."); return false; }
+    return true;
+  });
+
+  // Optional: prefill order_number from URL
+  (function(){
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (params.has('order_number')) {
+        document.getElementById('order_number').value = params.get('order_number');
+        // if model and stage already present, try to fetch operators after a short delay
+        setTimeout(() => {
+          const model = modelSelect.value;
+          const stage = stageInputElem.value;
+          const orderVal = document.getElementById('order_number').value.trim();
+          if (model && stage && orderVal) fetchOperators(model, orderVal, stage);
+        }, 400);
+      }
+    } catch(e){}
+  })();
+</script>
+
+
+<!-- Bot button already in your page: <button class="bubble" id="bot-btn">Bot</button> -->
+<script>
+async function pairBot(model, stage) {
+  if (!model || !stage) {
+    alert('Select model and stage first');
+    return;
+  }
+
+  // fetch available devices
+  const resp = await fetch(`/iot-ipv-devices/${encodeURIComponent(model)}/${encodeURIComponent(stage)}`);
+  if (!resp.ok) {
+    const txt = await resp.text().catch(()=>null);
+    console.error('Failed to fetch devices', resp.status, txt);
+    alert('Failed to fetch devices for model/stage');
+    return;
+  }
+  const data = await resp.json();
+  if (!data.ok) {
+    alert('No devices found: ' + (data.message || 'none'));
+    return;
+  }
+
+  const devices = data.devices || [];
+  const container = document.getElementById('deviceListContainer') || document.createElement('div');
+  container.id = 'deviceListContainer';
+  container.innerHTML = ''; // clear old
+  document.getElementById('bot-btn').insertAdjacentElement('afterend', container);
+
+  if (devices.length === 0) {
+    container.innerHTML = '<div class="note">No available devices for this model & stage.</div>';
+    return;
+  }
+
+  // render device cards with Ping and checkbox
+  const list = document.createElement('div');
+  list.className = 'd-flex flex-wrap gap-2';
+  devices.forEach(dev => {
+    const box = document.createElement('div');
+    box.className = 'p-2';
+    box.style.border = '1px solid rgba(0,0,0,0.06)';
+    box.style.borderRadius = '8px';
+    box.style.minWidth = '220px';
+    box.style.background = '#fff';
+
+    const title = document.createElement('div');
+    title.innerHTML = `<strong>${dev.device_name}</strong> <div class="note small">${dev.nick_name || ''}</div>`;
+    box.appendChild(title);
+
+    const info = document.createElement('div');
+    info.className = 'small text-muted';
+    info.innerHTML = `IP: ${dev.ip || '-'} <br> MAC: ${dev.mac || '-'} <br> Subtask: ${dev.subtask || '-'}`;
+    box.appendChild(info);
+
+    const btnRow = document.createElement('div');
+    btnRow.style.marginTop = '8px';
+    btnRow.style.display = 'flex';
+    btnRow.style.gap = '6px';
+    btnRow.style.alignItems = 'center';
+
+    const pingBtn = document.createElement('button');
+    pingBtn.type = 'button';
+    pingBtn.className = 'btn btn-sm btn-outline-primary';
+    pingBtn.textContent = 'Ping';
+    pingBtn.addEventListener('click', async () => {
+      pingBtn.disabled = true;
+      pingBtn.textContent = 'Pinging…';
+      try {
+        const r = await fetch('/iot-ipv-ping', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ ip: dev.ip })
+        });
+        const j = await r.json();
+        if (r.ok && j.ok) {
+          pingBtn.classList.remove('btn-outline-danger');
+          pingBtn.classList.add('btn-outline-success');
+          pingBtn.textContent = `OK ${j.rtt_ms ? j.rtt_ms+'ms' : ''}`;
+        } else {
+          pingBtn.classList.remove('btn-outline-success');
+          pingBtn.classList.add('btn-outline-danger');
+          pingBtn.textContent = 'No reply';
+        }
+      } catch(err){
+        console.error(err);
+        pingBtn.classList.remove('btn-outline-success');
+        pingBtn.classList.add('btn-outline-danger');
+        pingBtn.textContent = 'Error';
+      } finally {
+        setTimeout(()=>{ pingBtn.disabled=false; }, 1000);
+      }
+    });
+    btnRow.appendChild(pingBtn);
+
+    // include checkbox
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = true;
+    cb.style.marginLeft = 'auto';
+    cb.title = 'Include this device in bot pairing queue';
+    btnRow.appendChild(cb);
+
+    box.appendChild(btnRow);
+    list.appendChild(box);
+
+    // store device id on element for later
+    box.dataset.deviceId = dev.id;
+    box.dataset.subtask = dev.subtask; // shown but not required
+  });
+
+  container.appendChild(list);
+
+  // attach bot-button behavior: collect checked devices and enqueue
+  const botBtn = document.getElementById('bot-btn');
+botBtn.onclick = async () => {
+  const orderNumber = (document.getElementById('order_number')||{value:''}).value.trim();
+  if (!orderNumber) { alert('Please select / enter order number first'); return; }
+
+  // collect selected device ids and keep reference to device name for messages
+  const boxes = Array.from(list.children);
+  const selected = [];
+  boxes.forEach(box => {
+    const cbEl = box.querySelector('input[type=checkbox]');
+    if (cbEl && cbEl.checked) {
+      selected.push({
+        device_id: parseInt(box.dataset.deviceId,10),
+        device_name: box.querySelector('strong').textContent,
+        boxEl: box
+      });
+    }
+  });
+
+  if (selected.length === 0) { alert('Select at least one device to pair'); return; }
+
+  botBtn.disabled = true;
+  const prevText = botBtn.textContent;
+  botBtn.textContent = 'Pairing…';
+
+  try {
+    const resp = await fetch('/iot-ipv-autoqueue', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        order_number: orderNumber,
+        model: model,
+        stage: stage,
+        devices: selected.map(s=>s.device_id)
+      })
+    });
+
+    // Try parse body
+    let j;
+    try {
+      j = await resp.json();
+    } catch(err){
+      console.error('Non-JSON response from /iot-ipv-autoqueue', err);
+      alert('Server returned non-JSON response. Check console.');
+      return;
+    }
+
+    // ALWAYS log the full response for debugging
+    console.log('/iot-ipv-autoqueue response:', resp.status, j);
+
+    if (resp.ok && j.ok) {
+      // build user friendly message
+      const added = j.added || 0;
+      const created = Array.isArray(j.created_pairs) ? j.created_pairs.length : 0;
+      const skipped = Array.isArray(j.skipped) ? j.skipped : (j.skipped ? [j.skipped] : []);
+
+      let msg = `Enqueued ${added} device(s).`;
+      if (created && created !== added) msg += ` (Created pairs: ${created})`;
+
+      if (skipped.length) {
+        msg += `\n\n${skipped.length} skipped:\n`;
+        // iterate skipped and add details; handle either object or string formats
+        skipped.forEach(s => {
+          if (typeof s === 'string') {
+            msg += ` - ${s}\n`;
+          } else if (s && typeof s === 'object') {
+            // prefer human fields
+            const did = s.device_id || s.id || s.device || 'unknown';
+            const reason = s.reason || s.message || JSON.stringify(s);
+            msg += ` - device ${did}: ${reason}\n`;
+            // mark device card visually if present
+            const sel = selected.find(x => String(x.device_id) === String(did));
+            if (sel && sel.boxEl) {
+              // add small badge if not already present
+              let badge = sel.boxEl.querySelector('.queue-badge');
+              if (!badge) {
+                badge = document.createElement('div');
+                badge.className = 'queue-badge small text-danger';
+                badge.style.marginTop = '6px';
+                sel.boxEl.appendChild(badge);
+              }
+              badge.textContent = `Skipped: ${reason}`;
+            }
+          } else {
+            msg += ` - ${JSON.stringify(s)}\n`;
+          }
+        });
+      }
+
+      // show the built message (use confirm to preserve newlines nicely)
+      alert(msg);
+
+    } else {
+      // server returned error status
+      console.error('Enqueue failed:', j);
+      // if server returns {message:...} show it
+      const reason = j && (j.message || JSON.stringify(j));
+      alert('Failed to enqueue: ' + reason);
+    }
+
+  } catch (err) {
+    console.error('Network/error while enqueuing devices', err);
+    alert('Error while enqueuing devices. See console for details.');
+  } finally {
+    botBtn.disabled = false;
+    botBtn.textContent = prevText;
+  }
+};
+
+
+  // notify user
+  // don't auto alert repeatedly — use console + small visual hint
+  console.log(`Loaded ${devices.length} devices for ${model} S${stage}`);
+}
+</script>
+
+<script>
+  const lockBtn = document.getElementById("lockBtn");
+  const imageInputbtn = document.getElementById("image");
+
+  const CORRECT_PIN = "303909";
+
+  lockBtn.addEventListener("click", () => {
+    const pin = prompt("🔐 Enter PIN to unlock upload:");
+
+    if (pin === null) {
+      // user cancelled
+      return;
+    }
+
+    if (pin === CORRECT_PIN) {
+      alert("✅ PIN verified. Upload unlocked.");
+
+      // show file input
+      imageInputbtn.hidden = false;
+
+      // update button state
+      lockBtn.innerHTML = "🔓 Upload Unlocked";
+      lockBtn.classList.remove("btn-outline-secondary");
+      lockBtn.classList.add("btn-outline-success");
+
+      // optional: prevent re-click
+      lockBtn.disabled = true;
+    } else {
+      alert("❌ Invalid PIN. Try again.");
+    }
+  });
+</script>
+
+
+<!-- Bootstrap bundle -->
+<script src="../static/bootstrap-5.3.8-dist/bootstrap.bundle.min.js"></script>
+</body>
+</html>

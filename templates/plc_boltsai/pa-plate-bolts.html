@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>PLC RS Bearing Clamping Plates & Bolt Tracker - AI</title>
+
+  <!-- Bootstrap 5 CSS -->
+  <link rel="stylesheet" href="../static/bootstrap-5.3.8-dist/css/bootstrap.min.css">
+
+  <style>
+    .status-ok { color: green; font-weight: bold; }
+    .status-nok { color: red; font-weight: bold; }
+    .status-wip { color: orange; font-weight: bold; }
+    #result { display: none; }
+  </style>
+</head>
+<body class="bg-light py-5">
+
+  <div class="container">
+    <a href="{{ url_for('plc_boltsai.render_plates_table') }}">Logs</a>
+    <h1 class="mb-3">PLC RS Bearing Clamping Plates & Bolt Tracker - AI</h1>
+    <h4 class="text-muted mb-4">Cell: {{cell}}, Stand: {{stand}}</h4>
+
+    {% if last_datetime != "N/A" %}
+      <p><strong>Last Updated:</strong> {{ last_datetime }}</p>
+      <p><strong>Last Status:</strong>
+        <span class="{% if last_status == 'OK' %}status-ok{% elif last_status == 'NOK' %}status-nok{% else %}status-wip{% endif %}">
+          {{ last_status }}
+        </span>
+      </p>
+      <p><strong>Last Image:</strong></p>
+      <img src="{{ url_for('plc_boltsai.serve_last_image', image_name=last_image_path) }}"
+           alt="Last uploaded image"
+           class="img-thumbnail mb-4"
+           style="max-width: 400px;" />
+    {% else %}
+      <div class="alert alert-info">No previous data available for this Cell and Stand.</div>
+    {% endif %}
+
+    <form id="uploadForm" class="mb-4">
+      <div class="mb-3">
+        <label for="imageInput" class="form-label">Upload Bolt Stand Image:</label>
+        <input type="file" class="form-control" id="imageInput" name="image" accept="image/*" required />
+      </div>
+      <button type="submit" class="btn btn-primary">Analyze</button>
+    </form>
+
+    <div id="loadingSpinner" class="text-center my-4" style="display: none;">
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Analyzing...</span>
+      </div>
+      <p class="mt-2">Analyzing image, please wait...</p>
+    </div>
+
+    <div id="result" class="card shadow-sm p-4">
+      <h2>Analysis Result</h2>
+      <p><strong>Total Bolts Detected:</strong> <span id="boltCount"></span></p>
+      <p><strong>Stand Status:</strong> <span id="standStatus"></span></p>
+      <ul id="setStatusList" class="list-group mt-3"></ul>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById("uploadForm");
+    const resultBox = document.getElementById("result");
+    const boltCountSpan = document.getElementById("boltCount");
+    const standStatusSpan = document.getElementById("standStatus");
+    const setStatusList = document.getElementById("setStatusList");
+    const spinner = document.getElementById("loadingSpinner");
+
+    form.addEventListener("submit", async function (e) {
+      e.preventDefault();
+
+      resultBox.style.display = "none";
+      spinner.style.display = "block";
+
+      const formData = new FormData(form);
+
+      try {
+        const res = await fetch("{{ url_for('plc_boltsai.analyze_image_pa_ma_bolts_plates', cell=cell, stand=stand) }}", {
+          method: "POST",
+          body: formData
+        });
+
+        const data = await res.json();
+
+        boltCountSpan.textContent = data.bolt_count;
+
+        standStatusSpan.textContent = data.stand_status;
+        standStatusSpan.className = data.stand_status === "OK" ? "status-ok" : "status-nok";
+
+        setStatusList.innerHTML = "";
+        data.set_status.forEach(status => {
+          const li = document.createElement("li");
+          li.className = "list-group-item";
+          if (status.includes("OK")) li.classList.add("status-ok");
+          else if (status.includes("NOK")) li.classList.add("status-nok");
+          else li.classList.add("status-wip");
+          li.textContent = status;
+          setStatusList.appendChild(li);
+        });
+
+        resultBox.style.display = "block";
+      } catch (error) {
+        console.error(error);
+        alert("An error occurred while analyzing the image.");
+      } finally {
+        spinner.style.display = "none";
+      }
+    });
+  </script>
+</body>
+</html>

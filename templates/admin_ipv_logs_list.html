@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container py-3">
+  <h3>IPV AI Logs (latest)</h3>
+  <table class="table table-sm table-striped">
+    <thead><tr><th>ID</th><th>Order</th><th>Model</th><th>Stage</th><th>Subtask</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead>
+    <tbody>
+      {% for l in logs %}
+      <tr>
+        <td>{{ l.id }}</td>
+        <td>{{ l.order_number }}</td>
+        <td>{{ l.model }}</td>
+        <td>{{ l.stage }}</td>
+        <td>{{ l.subtask }}</td>
+        <td>{{ l.status }}</td>
+        <td>{{ l.created_at }}</td>
+        <td>
+          <a class="btn btn-sm btn-outline-primary" href="{{ url_for('admin_ipv.view_log', log_id=l.id) }}">View</a>
+          <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('admin_ipv.edit_log', log_id=l.id) }}">Edit</a>
+          <form style="display:inline" method="post" action="{{ url_for('admin_ipv.delete_log', log_id=l.id) }}" onsubmit="return confirm('Delete log?');">
+            <button class="btn btn-sm btn-outline-danger">Delete</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

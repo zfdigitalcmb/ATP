@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>PA-MA Plate & Bolts Tracker</title>
+  <link rel="stylesheet" href="../static/bootstrap-5.3.8-dist/css/bootstrap.min.css">
+  <style>
+    .clear-session-btn {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      z-index: 9999;
+    }
+    .thumbnail-img {
+      height: 60px;
+      object-fit: cover;
+    }
+    .cell-filter-btn:hover {
+      opacity: 0.9;
+      box-shadow: 0 0 10px rgba(0, 123, 255, 0.5);
+    }
+  </style>
+</head>
+<body class="bg-light">
+
+<div class="container py-5">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0">PA-MA Plate & Bolts Tracker</h2>
+    <div class="clear-session-btn d-none">
+      <button class="btn btn-sm btn-danger" onclick="clearSession()">Clear Session</button>
+    </div>
+  </div>
+
+  <div id="greet" class="alert alert-info d-none">Hello!</div>
+
+  <div class="row mb-4">
+    {% for cell, updates in grouped_data.items() if cell in ['PA-AUTO', 'MA-AUTO'] %}
+      <div class="col-md-4">
+        <div class="card mb-4 shadow-sm border-primary cell-filter-btn" data-cell="{{ cell }}" style="cursor: pointer;">
+          <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">{{ cell }}</h5>
+          </div>
+          <div class="card-body">
+            {% for update in updates %}
+              <p class="mb-1">
+                {% if update.status == "OK" %}
+                  <span class="badge bg-success">{{ update.status }}</span>
+                {% elif update.status == "NOK" %}
+                  <span class="badge bg-danger">{{ update.status }}</span>
+                {% else %}
+                  <span class="badge bg-warning text-dark">{{ update.status }}</span>
+                {% endif %}
+                <small class="text-muted">{{ update.datetime }}</small>
+              </p>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+
+  <div class="mb-3">
+    <button class="btn btn-sm btn-secondary me-2" onclick="showAllRows()">Show All</button>
+    <button class="btn btn-sm btn-success me-2" onclick="filterByStatus('OK')">Show OK</button>
+    <button class="btn btn-sm btn-danger" onclick="filterByStatus('NOK')">Show NOK</button>
+  </div>
+
+  <table class="table table-striped table-hover table-bordered">
+    <thead class="table-dark">
+      <tr>
+        <th>CELL</th>
+        <th>STAND NO</th>
+        <th>LAST UPDATED</th>
+        <th>STATUS</th>
+        <th>APPROVAL STATUS</th>
+        <th>FINAL STATUS / REASON</th>
+        <th>IMAGE</th>
+        <th class="moderator-header">MODERATOR'S ACTION</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+      <tr data-cell="{{ row.cell }}" data-status="{{ row.status }}">
+        <td>{{ row.cell }}</td>
+        <td>{{ row.stand }}</td>
+        <td>{{ row.datetime }}</td>
+        <td>
+          {% if row.status == "OK" %}
+            <span class="badge bg-success">{{ row.status }}</span>
+          {% elif row.status == "NOK" %}
+            <span class="badge bg-danger">{{ row.status }}</span>
+          {% else %}
+            <span class="badge bg-warning text-dark">{{ row.status }}</span>
+          {% endif %}
+        </td>
+        <td>{{ row.approval_status }}</td>
+        <td>{{ row.final_status }}</td>
+        <td>
+          <a href="{{ url_for('download_imagePA_MA_PLC_PLATES_BOLTS', filename=row.image_path) }}"
+             class="btn btn-sm btn-outline-primary mt-1" download>
+            Open Image
+          </a>
+        </td>
+        <td class="moderator-cell">
+          {% if row.approval_status == "PENDING" or row.approval_status == None %}
+          <form action="{{ url_for('update_statusPA_MA_PLC_PLATES_BOLTS_APPROVAL_STATUS') }}"
+                method="POST"
+                class="d-flex flex-column gap-2"
+                onsubmit="appendNOKReason(this)">
+            <input type="hidden" name="cell" value="{{ row.cell }}">
+            <input type="hidden" name="datetime" value="{{ row.datetime }}">
+            <input type="hidden" name="stand" value="{{ row.stand }}">
+
+            <select name="status" class="form-select form-select-sm w-auto" onchange="toggleNOKReasons(this)">
+              <option value="VERIFIED OK">VERIFIED OK</option>
+              <option value="VERIFIED NOK">VERIFIED NOK</option>
+            </select>
+
+            <div class="nok-reasons d-none gap-1 flex-wrap">
+              <input type="hidden" name="nok_reason" value="">
+              <button type="button" class="btn btn-sm btn-outline-danger mt-1" onclick="selectReason(this)">Camera Not Clear</button>
+              <button type="button" class="btn btn-sm btn-outline-danger mt-1" onclick="selectReason(this)">Missing Part</button>
+              <button type="button" class="btn btn-sm btn-outline-danger mt-1" onclick="selectReason(this)">No proper light</button>
+              <button type="button" class="btn btn-sm btn-outline-danger mt-1" onclick="selectReason(this)">Wrong Angle</button>
+              <button type="button" class="btn btn-sm btn-outline-danger mt-1" onclick="selectReason(this)">Paint quality</button>
+            </div>
+
+            <input type="hidden" name="final_status" value="">
+            <button type="submit" class="btn btn-sm btn-outline-success">Submit</button>
+          </form>
+          {% else %}
+            <em class="text-muted">N/A</em>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<script>
+  const allowedIDs = {
+    "407351": "Hasan.",
+    "558445": "Nandagopal",
+    "394220":"Vadivelu",
+    "077337":"Karthii",
+    "240387":"Poyies",
+    "461733": "Pradeep",
+    "670052": "Vinoth",
+    "360337": "Karthikeyan"
+  };
+
+  const storageKey = "employee_id";
+  const nameKey = "employee_name";
+  const expireKey = "employee_id_expire";
+
+  function isSessionValid() {
+    const id = localStorage.getItem(storageKey);
+    const expiresAt = localStorage.getItem(expireKey);
+    return id && expiresAt && new Date().getTime() < parseInt(expiresAt);
+  }
+
+  function askForID() {
+    const enteredID = prompt("Enter your ACCESS KEY to access moderator actions:");
+    if (enteredID in allowedIDs) {
+      const now = new Date().getTime();
+      localStorage.setItem(storageKey, enteredID);
+      localStorage.setItem(nameKey, allowedIDs[enteredID]);
+      localStorage.setItem(expireKey, now + 24 * 60 * 60 * 1000);
+      return true;
+    }
+    alert("Access Denied. Moderator actions hidden.");
+    return false;
+  }
+
+  function showModeratorElements(show) {
+    document.querySelectorAll(".moderator-header, .moderator-cell").forEach(e => {
+      e.style.display = show ? "" : "none";
+    });
+    document.querySelector(".clear-session-btn").classList.toggle("d-none", !show);
+    const greet = document.getElementById("greet");
+    if (show) {
+      const name = localStorage.getItem(nameKey) || "";
+      greet.textContent = "Hello, " + name + "! Moderator actions enabled.";
+      greet.classList.remove("d-none");
+    } else {
+      greet.classList.add("d-none");
+    }
+  }
+
+  function clearSession() {
+    localStorage.removeItem(storageKey);
+    localStorage.removeItem(nameKey);
+    localStorage.removeItem(expireKey);
+    location.reload();
+  }
+
+  window.onload = function () {
+    if (isSessionValid()) {
+      showModeratorElements(true);
+    } else {
+      showModeratorElements(askForID());
+    }
+
+    document.querySelectorAll('.cell-filter-btn').forEach(btn => {
+      btn.addEventListener('click', function () {
+        const selectedCell = this.getAttribute('data-cell');
+        filterTableByCell(selectedCell);
+      });
+    });
+  };
+
+  function toggleNOKReasons(selectElement) {
+    const form = selectElement.closest("form");
+    const reasonsDiv = form.querySelector(".nok-reasons");
+    const hiddenInput = form.querySelector("[name='nok_reason']");
+    hiddenInput.value = "";
+    reasonsDiv.querySelectorAll("button").forEach(btn => btn.classList.remove("active", "btn-danger"));
+
+    if (selectElement.value === "VERIFIED NOK") {
+      reasonsDiv.classList.remove("d-none");
+    } else {
+      reasonsDiv.classList.add("d-none");
+    }
+  }
+
+  function selectReason(button) {
+    const form = button.closest("form");
+    const hiddenInput = form.querySelector("[name='nok_reason']");
+    hiddenInput.value = button.innerText;
+    const buttons = form.querySelectorAll(".nok-reasons button");
+    buttons.forEach(btn => btn.classList.remove("active", "btn-danger"));
+    button.classList.add("active", "btn-danger");
+  }
+
+  function appendNOKReason(form) {
+    const statusSelect = form.querySelector("select[name='status']");
+    const nokReason = form.querySelector("[name='nok_reason']").value;
+    const finalStatusInput = form.querySelector("[name='final_status']");
+    const employeeName = localStorage.getItem(nameKey) || "Unknown";
+
+    if (statusSelect.value === "VERIFIED NOK" && nokReason) {
+      finalStatusInput.value = `VERIFIED NOK (${employeeName}) - ${nokReason}`;
+    } else if (statusSelect.value === "VERIFIED OK") {
+      finalStatusInput.value = `VERIFIED OK (${employeeName})`;
+    } else {
+      finalStatusInput.value = statusSelect.value;
+    }
+  }
+
+  function filterTableByCell(cellName) {
+    document.querySelectorAll('tbody tr').forEach(row => {
+      const rowCell = row.getAttribute('data-cell');
+      row.style.display = (rowCell === cellName) ? '' : 'none';
+    });
+  }
+
+  function filterByStatus(status) {
+    document.querySelectorAll('tbody tr').forEach(row => {
+      const rowStatus = row.getAttribute('data-status');
+      row.style.display = (rowStatus === status) ? '' : 'none';
+    });
+  }
+
+  function showAllRows() {
+    document.querySelectorAll('tbody tr').forEach(row => {
+      row.style.display = '';
+    });
+  }
+
+  
+</script>
+
+</body>
+</html>

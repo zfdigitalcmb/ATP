@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>PA-MA Plate & Bolts Tracker</title>
+  <link rel="stylesheet" href="../static/bootstrap-5.3.8-dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <style>
+    :root {
+      --bs-primary-rgb: 13, 110, 253;
+    }
+    body {
+      background: #f8f9fa;
+    }
+    .clear-session-btn {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      z-index: 9999;
+    }
+    .thumbnail-img {
+      height: 60px;
+      object-fit: cover;
+    }
+    .cell-filter-btn {
+      transition: all .2s ease;
+      cursor: pointer;
+    }
+    .cell-filter-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(var(--bs-primary-rgb), 0.25);
+    }
+    .table tr.active-preview {
+      background-color: #e8f1ff !important;
+      box-shadow: inset 4px 0 0 #0d6efd;
+    }
+    .card {
+      border: 0;
+      border-radius: 12px;
+    }
+    .table {
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0,0,0,.05);
+    }
+    .badge {
+      font-weight: 500;
+    }
+    .btn {
+      border-radius: 8px;
+    }
+    .form-select, .form-control {
+      border-radius: 8px;
+    }
+    .toast-container {
+      z-index: 99999;
+    }
+  </style>
+</head>
+<body>
+
+<!-- TOAST CONTAINER -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3">
+  <div id="liveToast" class="toast align-items-center text-bg-success border-0" role="alert">
+    <div class="d-flex">
+      <div class="toast-body">
+        <i class="bi bi-check-circle-fill me-2"></i><span id="toastMsg">Success</span>
+      </div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+    </div>
+  </div>
+</div>
+
+<!-- IMAGE PREVIEW MODAL -->
+<div class="modal fade" id="imagePreviewModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg" style="border-radius: 16px; overflow: hidden;">
+      <div class="modal-header border-0">
+        <h5 class="modal-title"><i class="bi bi-image me-2"></i>Captured Image Preview</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body text-center bg-dark p-0">
+        <img id="previewImage" src="" class="img-fluid">
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="container py-4">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2 class="mb-1 fw-bold">PA-MA PLC Clamping Bolts Tracker</h2>
+      <p class="text-muted mb-0">Real-time quality inspection dashboard</p>
+    </div>
+    <div class="clear-session-btn d-none">
+      <button class="btn btn-sm btn-outline-danger" onclick="clearSession()">
+        <i class="bi bi-box-arrow-right me-1"></i>Logout
+      </button>
+    </div>
+  </div>
+
+  <div id="greet" class="alert alert-primary border-0 d-none" style="border-radius: 12px;">
+    <i class="bi bi-person-check-fill me-2"></i>Hello!
+  </div>
+
+  <div class="row mb-4">
+    {% for cell, updates in grouped_data.items() if cell in ['PA-AUTO', 'MA-AUTO'] %}
+      <div class="col-md-4">
+        <div class="card mb-3 shadow-sm cell-filter-btn" data-cell="{{ cell }}">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <h5 class="mb-0 fw-semibold">{{ cell }}</h5>
+              <i class="bi bi-funnel-fill text-primary"></i>
+            </div>
+            {% for update in updates %}
+              <p class="mb-1">
+                {% if update.status == "OK" %}
+                  <span class="badge bg-success-subtle text-success-emphasis rounded-pill">{{ update.status }}</span>
+                {% elif update.status == "NOK" %}
+                  <span class="badge bg-danger-subtle text-danger-emphasis rounded-pill">{{ update.status }}</span>
+                {% else %}
+                  <span class="badge bg-warning-subtle text-warning-emphasis rounded-pill">{{ update.status }}</span>
+                {% endif %}
+                <small class="text-muted ms-2">{{ update.datetime }}</small>
+              </p>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+
+  <div class="d-flex gap-2 mb-3">
+    <button class="btn btn-sm btn-outline-secondary" onclick="showAllRows()">
+      <i class="bi bi-list-ul me-1"></i>Show All
+    </button>
+    <button class="btn btn-sm btn-outline-success" onclick="filterByStatus('OK')">
+      <i class="bi bi-check-circle me-1"></i>Show OK
+    </button>
+    <button class="btn btn-sm btn-outline-danger" onclick="filterByStatus('NOK')">
+      <i class="bi bi-x-circle me-1"></i>Show NOK
+    </button>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-3">CELL</th>
+            <th>STAND NO</th>
+            <th>LAST UPDATED</th>
+            <th>STATUS</th>
+            <th>APPROVAL STATUS</th>
+            <th>FINAL STATUS / REASON</th>
+            <th>IMAGE</th>
+            <th class="moderator-header pe-3">MODERATOR'S ACTION</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+          <tr data-cell="{{ row.cell }}" data-status="{{ row.status }}" data-id="{{ row.id }}">
+            <td class="ps-3 fw-medium">{{ row.cell }}</td>
+            <td>{{ row.stand }}</td>
+            <td><small>{{ row.datetime }}</small></td>
+            <td>
+              {% if row.status == "OK" %}
+                <span class="badge bg-success-subtle text-success-emphasis rounded-pill">{{ row.status }}</span>
+              {% elif row.status == "NOK" %}
+                <span class="badge bg-danger-subtle text-danger-emphasis rounded-pill">{{ row.status }}</span>
+              {% else %}
+                <span class="badge bg-warning-subtle text-warning-emphasis rounded-pill">{{ row.status }}</span>
+              {% endif %}
+            </td>
+            <td class="approval-status-cell">{{ row.approval_status }}</td>
+            <td class="final-status-cell">{{ row.final_status if row.final_status is defined else '' }}</td>
+            <td>
+              <button
+                class="btn btn-sm btn-outline-primary view-image-btn"
+                data-image-url="{{ url_for('plc_boltsai.serve_last_image', image_name=row.image_path) }}"
+              >
+                <i class="bi bi-eye me-1"></i>View
+              </button>
+            </td>
+            <td class="moderator-cell pe-3">
+              {% if row.approval_status == "PENDING" or row.approval_status == None %}
+              <form class="moderator-form d-flex flex-column gap-2" data-id="{{ row.id }}">
+                <input type="hidden" name="entry_id" value="{{ row.id }}">
+                <select name="final_status" class="form-select form-select-sm" onchange="toggleNOKReasons(this)">
+                  <option value="VERIFIED OK">VERIFIED OK</option>
+                  <option value="VERIFIED NOK">VERIFIED NOK</option>
+                </select>
+
+                <div class="nok-reasons d-none gap-1 flex-wrap">
+                  <input type="hidden" name="nok_reason" value="">
+                  <button type="button" class="btn btn-sm btn-outline-danger" onclick="selectReason(this)">Camera Not Clear</button>
+                  <button type="button" class="btn btn-sm btn-outline-danger" onclick="selectReason(this)">Missing Part</button>
+                  <button type="button" class="btn btn-sm btn-outline-danger" onclick="selectReason(this)">No proper light</button>
+                  <button type="button" class="btn btn-sm btn-outline-danger" onclick="selectReason(this)">Wrong Angle</button>
+                  <button type="button" class="btn btn-sm btn-outline-danger" onclick="selectReason(this)">Paint quality</button>
+                </div>
+
+                <input type="hidden" name="approval_status" value="">
+                <button type="submit" class="btn btn-sm btn-success">
+                  <i class="bi bi-check-lg me-1"></i>Submit
+                </button>
+              </form>
+              {% else %}
+                <em class="text-muted">N/A</em>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script src="../static/bootstrap-5.3.8-dist/bootstrap.bundle.min.js"></script>
+<script>
+  const allowedIDs = {
+    "740351": "Hasan (ATP)",
+    "558445": "Nandagopal (ATP)",
+    "394220":"Vadivelu (PA)",
+    "077337":"Karthi (PA)",
+    "240387":"Poyies (WK)",
+    "461733": "Pradeep (EA)",
+    "670052": "Vinoth (MA)",
+    "360337": "Karthikeyan (MA)",
+    "2672": "Karthik R (MA)",
+    "1745": "Gokul (MA)",
+    "6193": "Raghu (MA)"
+  };
+
+  const storageKey = "employee_id";
+  const nameKey = "employee_name";
+  const expireKey = "employee_id_expire";
+  const toastBootstrap = new bootstrap.Toast(document.getElementById('liveToast'));
+
+  function showToast(msg, isError = false) {
+    const toastEl = document.getElementById('liveToast');
+    const toastMsg = document.getElementById('toastMsg');
+    toastMsg.textContent = msg;
+    toastEl.className = `toast align-items-center text-bg-${isError ? 'danger' : 'success'} border-0`;
+    toastBootstrap.show();
+  }
+
+  function isSessionValid() {
+    const id = localStorage.getItem(storageKey);
+    const expiresAt = localStorage.getItem(expireKey);
+    return id && expiresAt && new Date().getTime() < parseInt(expiresAt);
+  }
+
+  function askForID() {
+    const enteredID = prompt("Enter your ACCESS KEY to access moderator actions:");
+    if (enteredID in allowedIDs) {
+      const now = new Date().getTime();
+      localStorage.setItem(storageKey, enteredID);
+      localStorage.setItem(nameKey, allowedIDs[enteredID]);
+      localStorage.setItem(expireKey, now + 24 * 60 * 60 * 1000);
+      return true;
+    }
+    alert("Access Denied. Moderator actions hidden.");
+    return false;
+  }
+
+  function showModeratorElements(show) {
+    document.querySelectorAll(".moderator-header, .moderator-cell").forEach(e => {
+      e.style.display = show ? "" : "none";
+    });
+    document.querySelector(".clear-session-btn").classList.toggle("d-none", !show);
+    const greet = document.getElementById("greet");
+    if (show) {
+      const name = localStorage.getItem(nameKey) || "";
+      greet.innerHTML = `<i class="bi bi-person-check-fill me-2"></i>Hello, ${name}! Moderator actions enabled.`;
+      greet.classList.remove("d-none");
+    } else {
+      greet.classList.add("d-none");
+    }
+  }
+
+  function clearSession() {
+    localStorage.removeItem(storageKey);
+    localStorage.removeItem(nameKey);
+    localStorage.removeItem(expireKey);
+    location.reload();
+  }
+
+  function toggleNOKReasons(selectElement) {
+    const form = selectElement.closest("form");
+    const reasonsDiv = form.querySelector(".nok-reasons");
+    const hiddenInput = form.querySelector("[name='nok_reason']");
+    hiddenInput.value = "";
+    reasonsDiv.querySelectorAll("button").forEach(btn => btn.classList.remove("active", "btn-danger"));
+
+    if (selectElement.value === "VERIFIED NOK") {
+      reasonsDiv.classList.remove("d-none");
+      reasonsDiv.classList.add("d-flex");
+    } else {
+      reasonsDiv.classList.add("d-none");
+      reasonsDiv.classList.remove("d-flex");
+    }
+  }
+
+  function selectReason(button) {
+    const form = button.closest("form");
+    const hiddenInput = form.querySelector("[name='nok_reason']");
+    hiddenInput.value = button.innerText;
+    const buttons = form.querySelectorAll(".nok-reasons button");
+    buttons.forEach(btn => btn.classList.remove("active", "btn-danger"));
+    button.classList.add("active", "btn-danger");
+  }
+
+  function appendNOKReason(form) {
+    const statusSelect = form.querySelector("select[name='final_status']");
+    const nokReason = form.querySelector("[name='nok_reason']").value;
+    const approvalInput = form.querySelector("[name='approval_status']");
+    const employeeName = localStorage.getItem(nameKey) || "Unknown";
+
+    if (statusSelect.value === "VERIFIED NOK" && nokReason) {
+      approvalInput.value = `VERIFIED NOK (${employeeName}) - ${nokReason}`;
+    } else if (statusSelect.value === "VERIFIED OK") {
+      approvalInput.value = `VERIFIED OK (${employeeName})`;
+    } else {
+      approvalInput.value = statusSelect.value;
+    }
+  }
+
+  function filterTableByCell(cellName) {
+    document.querySelectorAll('tbody tr').forEach(row => {
+      const rowCell = row.getAttribute('data-cell');
+      row.style.display = (rowCell === cellName) ? '' : 'none';
+    });
+  }
+
+  function filterByStatus(status) {
+    document.querySelectorAll('tbody tr').forEach(row => {
+      const rowStatus = row.getAttribute('data-status');
+      row.style.display = (rowStatus === status) ? '' : 'none';
+    });
+  }
+
+  function showAllRows() {
+    document.querySelectorAll('tbody tr').forEach(row => {
+      row.style.display = '';
+    });
+  }
+
+  // AJAX FORM SUBMIT - NO PAGE REFRESH
+  document.addEventListener('submit', async function(e) {
+    if (!e.target.classList.contains('moderator-form')) return;
+    e.preventDefault();
+    
+    const form = e.target;
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const row = form.closest('tr');
+    
+    appendNOKReason(form);
+    
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Submitting...';
+    
+    try {
+      const formData = new FormData(form);
+      const res = await fetch("{{ url_for('plc_boltsai.update_approval') }}", {
+        method: 'POST',
+        body: formData
+      });
+      
+      if (!res.ok) throw new Error('Server error');
+      
+      const data = await res.json(); // Expecting {success: true, approval_status: "...", final_status: "..."}
+      
+      // Update table cells in-place
+      row.querySelector('.approval-status-cell').textContent = formData.get('approval_status');
+      row.querySelector('.final-status-cell').textContent = form.querySelector('[name="final_status"]').value;
+      
+      // Replace form with N/A
+      form.parentElement.innerHTML = '<em class="text-muted">N/A</em>';
+      
+      showToast('Approval submitted successfully');
+    } catch (err) {
+      showToast('Failed to submit. Try again.', true);
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Submit';
+    }
+  });
+
+  // IMAGE PREVIEW
+  let activeRow = null;
+  document.querySelectorAll(".view-image-btn").forEach(btn => {
+    btn.addEventListener("click", function () {
+      const imgUrl = this.getAttribute("data-image-url");
+      document.getElementById("previewImage").src = imgUrl;
+
+      if (activeRow) activeRow.classList.remove("active-preview");
+      activeRow = this.closest("tr");
+      activeRow.classList.add("active-preview");
+
+      new bootstrap.Modal(document.getElementById("imagePreviewModal")).show();
+    });
+  });
+
+  document.getElementById("imagePreviewModal").addEventListener("hidden.bs.modal", () => {
+    if (activeRow) {
+      activeRow.classList.remove("active-preview");
+      activeRow = null;
+    }
+  });
+
+  window.onload = function () {
+    if (isSessionValid()) {
+      showModeratorElements(true);
+    } else {
+      showModeratorElements(askForID());
+    }
+
+    document.querySelectorAll('.cell-filter-btn').forEach(btn => {
+      btn.addEventListener('click', function () {
+        const selectedCell = this.getAttribute('data-cell');
+        filterTableByCell(selectedCell);
+      });
+    });
+  };
+</script>
+
+</body>
+</html>

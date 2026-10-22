@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Internal Parts Verification Log</title>
+
+  <!-- Bootstrap -->
+  <link rel="stylesheet" href="../static/bootstrap-5.3.8-dist/css/bootstrap.min.css">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+
+  <style>
+    body {
+      background: linear-gradient(135deg, #e3f2fd, #ffffff 50%, #dceefb);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      font-family: "Poppins", "Segoe UI", Arial, sans-serif;
+      color: #222;
+    }
+
+    /* Glass container */
+    .glass {
+      background: rgba(255, 255, 255, 0.75);
+      border-radius: 16px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.1);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      padding: 2rem;
+      width: 100%;
+      max-width: 1200px;
+    }
+
+    h2 {
+      font-weight: 600;
+      color: #1e3a8a;
+      text-align: center;
+      margin-bottom: 1rem;
+    }
+
+    .go-back {
+      color: #1e3a8a;
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    .go-back:hover {
+      text-decoration: underline;
+    }
+
+    /* Filter inputs */
+    .filters .form-control {
+      border-radius: 10px;
+      border: 1px solid #cbd5e1;
+      background: rgba(255,255,255,0.9);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+
+    /* Table styling */
+    .table {
+      background-color: rgba(255,255,255,0.9);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .table thead {
+      background-color: #1e3a8a;
+      color: #fff;
+    }
+
+    .table tbody tr:hover {
+      background-color: rgba(30,58,138,0.06);
+    }
+
+    /* Badges */
+    .badge-ok {
+      background-color: #22c55e;
+      color: white;
+    }
+
+    .badge-nok {
+      background-color: #ef4444;
+      color: white;
+    }
+
+    .badge-secondary-custom {
+      background-color: #64748b;
+      color: white;
+    }
+
+    .badge-required-complete {
+      background: linear-gradient(90deg,#e2e8f0,#cbd5e1);
+      color: #0b1220;
+      border: 1px solid rgba(11,18,32,0.06);
+      font-weight: 600;
+    }
+
+    .badge-required-missing {
+      background: linear-gradient(90deg,#fecaca,#f87171);
+      color: #58151a;
+      border: 1px solid rgba(120,20,20,0.08);
+      font-weight: 700;
+    }
+
+    /* Buttons */
+    .action-btn {
+      border-radius: 10px;
+      padding: 6px 10px;
+      font-size: 0.85rem;
+      font-weight: 500;
+    }
+
+    .btn-outline-light {
+      color: #1e3a8a !important;
+      border-color: #1e3a8a !important;
+    }
+
+    .btn-outline-light:hover {
+      background-color: #1e3a8a !important;
+      color: #fff !important;
+    }
+
+    .btn-outline-info {
+      border-color: #0284c7 !important;
+      color: #0284c7 !important;
+    }
+
+    .btn-outline-info:hover {
+      background-color: #0284c7 !important;
+      color: white !important;
+    }
+
+    @media (max-width: 992px) {
+      .filters .col { margin-bottom: 10px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="glass">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <a href="javascript:history.back()" class="go-back"><i class="fa fa-arrow-left me-2"></i>Go Back</a>
+      <h2>Internal Parts Verification Log</h2>
+      <div class="text-end small">
+        <span class="badge bg-secondary me-1">Total: <span id="totalOrders">—</span></span>
+        <span class="badge bg-success me-1">Completed: <span id="okOrders">—</span></span>
+        <span class="badge bg-danger">Pending: <span id="nokOrders">—</span></span>
+      </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="filters mb-3">
+      <div class="row g-2">
+        <div class="col-md-2"><input type="text" id="orderFilter" class="form-control" placeholder="Order Number"></div>
+        <div class="col-md-2"><input type="text" id="modelFilter" class="form-control" placeholder="Model"></div>
+        <div class="col-md-2"><input type="text" id="stageFilter" class="form-control" placeholder="Stage"></div>
+        <div class="col-md-2"><input type="text" id="taskFilter" class="form-control" placeholder="Completed Subtasks"></div>
+        <div class="col-md-2"><input type="date" id="dateFilter" class="form-control"></div>
+        <div class="col-md-2"><input type="text" id="employeeFilter" class="form-control" placeholder="Employee"></div>
+      </div>
+    </div>
+
+    <!-- Table -->
+    <div class="table-responsive">
+      <table class="table table-hover align-middle" id="dataTable">
+        <thead>
+          <tr>
+            <th>Order Number</th>
+            <th>Model</th>
+            <th>Stage</th>
+            <th>Employees</th>
+            <th>Completed Subtasks</th>
+            <th>Required Subtasks</th>
+            <th>Start Time</th>
+            <th>End Time</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for order in summary_data %}
+          <tr>
+            <td>{{ order.order_number }}</td>
+            <td>{{ order.model }}</td>
+            <td>{{ order.stage }}</td>
+            <td>
+              {% for emp in order.employees %}
+              <span class="badge bg-primary me-1">{{ emp }}</span>
+              {% endfor %}
+            </td>
+
+            <!-- Completed Subtasks -->
+            <td>
+              {% for sub in order.completed_subtasks | sort %}
+              <span class="badge bg-success me-1">{{ sub }}</span>
+              {% endfor %}
+            </td>
+
+            <!-- Required Subtasks: highlight missing ones -->
+            <td>
+              {# Convert completed_subtasks to strings for safe comparison #}
+              {% set completed_strs = order.completed_subtasks | map('string') | list %}
+              {% for sub in order.required_subtasks | sort %}
+                  {% if sub|string in completed_strs %}
+                      <span class="badge badge-required-complete me-1">{{ sub }}</span>
+                  {% else %}
+                      <span class="badge badge-required-missing me-1">{{ sub }}</span>
+                  {% endif %}
+              {% endfor %}
+            </td>
+
+            <td>{{ order.start_time or 'N/A' }}</td>
+            <td>{{ order.end_time or 'N/A' }}</td>
+            <td>
+              {% if order.overall_status == 'OK' %}
+              <span class="badge badge-ok">OK</span>
+              {% else %}
+              <span class="badge badge-nok">NOK</span>
+              {% endif %}
+            </td>
+            <td>
+              <div class="d-grid gap-1">
+                <form action="{{ url_for('orings.generate_overall_pdf') }}" method="POST" class="d-inline">
+                  <input type="hidden" name="order_number" value="{{ order.order_number }}">
+                  <input type="hidden" name="model_name" value="{{ order.model }}">
+                  <input type="hidden" name="stage" value="{{ order.stage }}">
+                  <button type="submit" class="btn btn-outline-light action-btn w-100" {% if order.overall_status != 'OK' %}disabled{% endif %}>
+                    <i class="fa fa-file-pdf me-1"></i>PDF
+                  </button>
+                </form>
+
+                {% if order.overall_status != 'OK' and order.completed_subtasks and order.employees %}
+                {% set latest_subtask = order.completed_subtasks | max %}
+                {% set sorted_employees = order.employees | list %}
+                {% set last_employee = sorted_employees[-1] if sorted_employees else '' %}
+                {% if last_employee %}
+                <form action="{{ url_for('orings.nxt_task', subtask=(latest_subtask | int) + 1, order_number=order.order_number, model_name=order.model, stage=order.stage, employee_id=last_employee) }}" method="GET" class="d-inline">
+                  <button type="submit" class="btn btn-success action-btn w-100">
+                    <i class="fa fa-play me-1"></i>Resume
+                  </button>
+                </form>
+                {% endif %}
+                {% endif %}
+
+                <a href="/logs-oring-sml?order_number={{ order.order_number }}" class="btn btn-outline-info action-btn w-100">
+                  <i class="fa fa-info-circle me-1"></i>More
+                </a>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script src="../static/bootstrap-5.3.8-dist/bootstrap.bundle.min.js"></script>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", function() {
+      try {
+        const logs = {{ logs | tojson }};
+        const map = new Map();
+        logs.forEach(o => map.set(o.order_number, o.status));
+        const total = map.size;
+        const ok = [...map.values()].filter(v => v && (v.toLowerCase() === "pass" || v.toLowerCase() === "ok")).length;
+        const nok = total - ok;
+        document.getElementById("totalOrders").textContent = total;
+        document.getElementById("okOrders").textContent = ok;
+        document.getElementById("nokOrders").textContent = nok;
+      } catch(e) {}
+    });
+
+    // Filter logic
+    document.addEventListener("DOMContentLoaded", function() {
+      const filters = {
+        order: document.getElementById("orderFilter"),
+        model: document.getElementById("modelFilter"),
+        stage: document.getElementById("stageFilter"),
+        task: document.getElementById("taskFilter"),
+        date: document.getElementById("dateFilter"),
+        employee: document.getElementById("employeeFilter")
+      };
+
+      const rows = document.querySelectorAll("#dataTable tbody tr");
+
+      function filterTable() {
+        rows.forEach(row => {
+          const vals = [
+            row.cells[0].textContent.toLowerCase(),
+            row.cells[1].textContent.toLowerCase(),
+            row.cells[2].textContent.toLowerCase(),
+            row.cells[3].textContent.toLowerCase(),
+            row.cells[4].textContent.toLowerCase()
+          ];
+          const orderMatch = !filters.order.value || vals[0].includes(filters.order.value.toLowerCase());
+          const modelMatch = !filters.model.value || vals[1].includes(filters.model.value.toLowerCase());
+          const stageMatch = !filters.stage.value || vals[2].includes(filters.stage.value.toLowerCase());
+          const taskMatch = !filters.task.value || vals[4].includes(filters.task.value.toLowerCase());
+          const empMatch = !filters.employee.value || vals[3].includes(filters.employee.value.toLowerCase());
+          const dateMatch = !filters.date.value || (new Date(row.cells[6].textContent).toDateString() === new Date(filters.date.value).toDateString());
+          row.style.display = (orderMatch && modelMatch && stageMatch && taskMatch && empMatch && dateMatch) ? "" : "none";
+        });
+      }
+
+      Object.values(filters).forEach(input => input.addEventListener("input", filterTable));
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container py-3">
+  <h3>Edit Log {{ log.id }}</h3>
+  <form method="post">
+    <div class="mb-2">
+      <label>Status</label>
+      <select class="form-control" name="status">
+        <option {% if log.status == 'pass' %}selected{% endif %}>pass</option>
+        <option {% if log.status == 'fail' %}selected{% endif %}>fail</option>
+        <option {% if log.status == 'skipped' %}selected{% endif %}>skipped</option>
+      </select>
+    </div>
+    <div class="mb-2">
+      <label>Current Quantity</label>
+      <input class="form-control" name="current_quantity" value="{{ log.current_quantity }}" />
+    </div>
+    <div class="mb-2">
+      <label>Required Quantity</label>
+      <input class="form-control" name="required_quantity" value="{{ log.required_quantity }}" />
+    </div>
+    <div class="card mt-4">
+  <div class="card-body">
+    <h5>Images</h5>
+
+    {% if log.predicted_image_path %}
+      <p><strong>Predicted Image</strong></p>
+      <img src="{{ url_for('orings.view_task_image',
+        order_number=log.order_number,
+        model=log.model,
+        stage=log.stage,
+        subtask=log.subtask,
+        employee_id=log.employee_id) }}"
+     class="img-fluid"
+     style="max-width:400px;">
+    {% endif %}
+
+  </div>
+</div>
+    <div class="mb-2">
+      <label>Predicted Image URL</label>
+      <input class="form-control" name="predicted_image_path" value="{{ log.predicted_image_path }}" />
+    </div>
+    <div class="mb-2">
+      <label>Original Image URL</label>
+      <input class="form-control" name="image_path" value="{{ log.image_path }}" />
+    </div>
+    <div>
+      <button class="btn btn-success">Save</button>
+      <a class="btn btn-secondary" href="{{ url_for('admin_ipv.view_log', log_id=log.id) }}">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

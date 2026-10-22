@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>O-Ring Assembly - Success</title>
+
+  <!-- Bootstrap 5 + Font Awesome + jQuery -->
+  <link rel="stylesheet" href="../static/bootstrap-5.3.8-dist/css/bootstrap.min.css">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+  <style>
+    :root{
+      --accent:#1e3a8a;
+      --glass-bg: rgba(255,255,255,0.92);
+      --muted:#64748b;
+    }
+    body{
+      background: linear-gradient(135deg,#e3f2fd,#ffffff 50%,#dceefb);
+      font-family: "Poppins","Segoe UI",Arial,sans-serif;
+      color:#0b1220;
+      min-height:100vh;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:2rem;
+    }
+
+    .glass {
+      background: var(--glass-bg);
+      border-radius:16px;
+      box-shadow: 0 10px 30px rgba(2,6,23,0.08);
+      padding:1.25rem;
+      max-width:1100px;
+      width:100%;
+      backdrop-filter: blur(8px);
+    }
+
+    .page-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; gap:1rem; }
+    .left-head { display:flex; align-items:center; gap:.75rem; }
+    .page-head h2 { color:var(--accent); margin:0; font-weight:600; }
+    .back-btn { color:var(--accent); text-decoration:none; font-weight:600; display:inline-flex; align-items:center; gap:.5rem; }
+    .log-link { color:var(--accent); text-decoration:none; font-weight:600; }
+    .note { color:var(--muted); font-size:0.9rem; }
+
+    .alert-success {
+      border-radius:12px;
+      padding:1rem;
+      margin-bottom:1rem;
+      display:flex;
+      align-items:center;
+      gap:1rem;
+    }
+
+    /* two-column layout */
+    .capture-flex { display:flex; gap:1.25rem; align-items:stretch; flex-wrap:nowrap; margin-top:1rem; }
+    .sample-box, .camera-box { background: #fff; border-radius:12px; padding:1rem; border:1px solid rgba(11,18,32,0.06); flex:1 1 50%; display:flex; flex-direction:column; }
+    .sample-image { width:100%; height:320px; object-fit:contain; border-radius:10px; background:#f8fafc; cursor:pointer; border:1px dashed rgba(0,0,0,0.06); }
+    .camera-view { position:relative; border-radius:10px; overflow:hidden; height:320px; background:#000; }
+    #video, #capturedPreview { width:100%; height:100%; object-fit:cover; display:block; }
+    #capturedPreview { display:none; }
+
+    .controls { display:flex; gap:0.6rem; margin-bottom:.75rem; }
+    .controls .btn { flex:1 1 auto; }
+
+    .thumbnail-row { display:flex; gap:.5rem; margin-top:.75rem; flex-wrap:wrap; align-items:center; }
+    .thumb { width:86px; height:66px; object-fit:cover; border-radius:6px; border:1px solid rgba(0,0,0,0.06); cursor:pointer; }
+
+    .spinner-overlay {
+      position:absolute;
+      inset:0;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      background: linear-gradient(0deg, rgba(255,255,255,0.4), rgba(255,255,255,0.25));
+      z-index:30;
+      backdrop-filter: blur(3px);
+    }
+
+    .form-label{ font-weight:600; color:#0b1220; margin-bottom:.4rem; }
+
+    .meta-row { display:flex; gap:1rem; flex-wrap:wrap; margin-top:.5rem; color:var(--muted); }
+
+    @media (max-width:991px){
+      .capture-flex{ flex-direction:column; }
+      .sample-image, .camera-view{ height:240px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="glass">
+    <div class="page-head">
+      <div class="left-head">
+        <a class="back-btn" href="javascript:history.back()"><i class="fa fa-chevron-left"></i> Back</a>
+        <h2>Sub-task Completed</h2>
+      </div>
+
+      <div style="text-align:right;">
+        <a class="log-link" href="/oring-internal-logs"><i class="fa fa-list-alt me-1"></i>Log / Resume Order</a>
+        <div class="note">Camera default: <strong>Environment</strong></div>
+      </div>
+    </div>
+
+    <div class="alert alert-success text-center">
+      <div>
+        <h4 class="mb-1">Sub-task completed successfully!</h4>
+        <div class="note">You can proceed to the next sub-task.</div>
+      </div>
+      <div class="ms-auto text-end">
+        <div class="meta-row">
+          <div><strong>Order:</strong> {{ order_number }}</div>
+          <div><strong>Employee:</strong> {{ employee_id }}</div>
+          <div><strong>Model:</strong> {{ model_name }}</div>
+          <div><strong>Stage:</strong> {{ stage }}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Subtask details + action -->
+    <div class="mb-2">
+      <div class="form-label">Proceed to Next Task</div>
+      <div class="note">Choose the next subtask and capture or upload image to continue.</div>
+    </div>
+
+    <form id="nextForm" action="{{ url_for('orings.submit_task') }}" method="post" enctype="multipart/form-data" autocomplete="off">
+      <!-- preserve identifying hidden fields -->
+      <input type="hidden" name="order_number" value="{{ order_number }}">
+      <input type="hidden" name="model_name" value="{{ model_name }}">
+      <input type="hidden" name="stage" value="{{ stage }}">
+
+      <div class="row g-2">
+        <div class="col-md-6">
+          <label class="form-label" for="employee_id_input">Employee ID</label>
+          <input id="employee_id_input" name="employee_id" class="form-control" value="{{ employee_id }}" required>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Selected Model / Stage</label>
+          <div class="form-control-plaintext">{{ model_name }} — {{ stage }}</div>
+        </div>
+      </div>
+
+      <div class="row g-2 mt-2">
+        <div class="col-12">
+          <label class="form-label">Subtask</label>
+          <select id="subtask" name="subtask" class="form-control" required>
+            <option value="">-- Select Subtask --</option>
+            <!-- populated by JS -->
+          </select>
+        </div>
+      </div>
+
+      <!-- Left (sample) / Right (camera) -->
+      <div class="capture-flex">
+        <div class="sample-box">
+          <label class="form-label">Subtask Description</label>
+          <div id="subtask_description" style="min-height:64px;" class="mb-2"></div>
+
+          <label class="form-label">Required O-Rings</label>
+          <div id="required_orings" class="mb-2 note"></div>
+
+          <label class="form-label">Sample Image (tap to enlarge)</label>
+          <img id="sample_image" class="sample-image" src="" alt="Sample Image (click to enlarge)">
+
+          <div id="sample_meta" class="mt-2 note"></div>
+        </div>
+
+        <div class="camera-box">
+          <div class="controls">
+            <button type="button" id="captureButton" class="btn btn-primary"><i class="fa fa-camera me-1"></i> Capture</button>
+            <button type="button" id="retakeButton" class="btn btn-outline-secondary" style="display:none;"><i class="fa fa-undo me-1"></i>Retake</button>
+            <button type="button" id="flipButton" class="btn btn-outline-secondary"><i class="fa fa-sync-alt me-1"></i>Flip</button>
+          </div>
+
+          <div class="camera-view mb-2" id="cameraView">
+            <div id="spinner" class="spinner-overlay" style="display:flex;">
+              <div class="text-center">
+                <div class="spinner-border text-primary" role="status" style="width:3rem;height:3rem"></div>
+                <div class="mt-2 note">Starting camera...</div>
+              </div>
+            </div>
+
+            <video id="video" autoplay playsinline muted></video>
+            <img id="capturedPreview" alt="Captured Preview">
+          </div>
+
+          <label class="form-label">Upload (optional)</label>
+          <input id="image" name="image" type="file" accept="image/*" class="form-control mb-2">
+          <input type="hidden" id="image_data" name="image_data">
+          <div class="note">Captured image will attach automatically.</div>
+
+          <div class="mt-2">
+            <div class="form-label">Captured Thumbnails</div>
+            <div id="thumbnailRow" class="thumbnail-row"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Submit full width -->
+      <div class="row mt-3">
+        <div class="col-12">
+          <button type="submit" class="btn btn-success btn-lg w-100">Submit Task</button>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <!-- Sample Image Modal -->
+  <div class="modal fade" id="sampleModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content">
+        <div class="modal-body p-0">
+          <img id="sampleModalImg" src="" alt="Sample Large" style="width:100%; height:auto; display:block; object-fit:contain;">
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+  // server-provided orings_data (model -> { stage -> [subtask objects] })
+  const orings_data = {{ orings_data | tojson | safe }};
+
+  // DOM elements
+  const subtaskSelect = document.getElementById('subtask');
+  const sampleImage = document.getElementById('sample_image');
+  const subtaskDescription = document.getElementById('subtask_description');
+  const requiredOrings = document.getElementById('required_orings');
+  const sampleMeta = document.getElementById('sample_meta');
+
+  const video = document.getElementById('video');
+  const capturedPreview = document.getElementById('capturedPreview');
+  const captureButton = document.getElementById('captureButton');
+  const flipButton = document.getElementById('flipButton');
+  const retakeButton = document.getElementById('retakeButton');
+  const imageInput = document.getElementById('image');
+  const imageData = document.getElementById('image_data');
+  const thumbnailRow = document.getElementById('thumbnailRow');
+  const spinner = document.getElementById('spinner');
+
+  let stream = null;
+  let facingMode = 'environment';
+
+  // ---------- Image helpers ----------
+// --- Robust resolver: normalizes backslashes, strips prefixes, encodes spaces ---
+function resolveImagePath(path) {
+  if (!path) return '';
+  path = String(path).trim();
+
+  // convert backslashes to forward slashes (fix Windows paths)
+  path = path.replace(/\\/g, '/');
+
+  // collapse multiple slashes into one (but keep the protocol part if present)
+  path = path.replace(/([^:]\/)\/+/g, '$1');
+
+  // already absolute URL or data URI -> leave as-is (still normalize slashes)
+  if (/^(https?:)?\/\//i.test(path) || path.startsWith('data:')) return path;
+
+  // If 'static/' exists anywhere, strip anything before the first 'static/'.
+  // This handles cases like "/nxt_task/.../static/..." or "..\static\..."
+  const idx = path.indexOf('static/');
+  if (idx !== -1) {
+    let tail = path.slice(idx); // e.g. "static/images/..."
+    if (!tail.startsWith('/')) tail = '/' + tail;
+    // encodeURI will encode spaces and other special chars but won't touch '/'
+    return encodeURI(tail);
+  }
+
+  // If already root-relative
+  if (path.startsWith('/')) return encodeURI(path);
+
+  // Normalize common patterns
+  if (path.startsWith('static/')) return encodeURI('/' + path);
+  if (path.startsWith('images/') || path.startsWith('img/')) return encodeURI('/static/' + path);
+
+  // fallback: make root-relative and encode
+  return encodeURI('/' + path.replace(/^\/+/, ''));
+}
+
+function showSamplePlaceholder(el, msg) {
+  if (!el) return;
+  el.src = '';
+  el.alt = msg || 'Sample image not available';
+  el.style.background = 'linear-gradient(90deg,#f8fafc,#eef2ff)';
+  const meta = document.getElementById('sample_meta');
+  if (meta) meta.textContent = msg || 'Sample image not available';
+}
+
+function setSampleImage(rawPath) {
+  const img = document.getElementById('sample_image');
+  if (!img) return;
+  if (!rawPath) { showSamplePlaceholder(img); return; }
+
+  const resolved = resolveImagePath(rawPath);
+  console.debug('[sample image] raw ->', rawPath, 'resolved ->', resolved);
+
+  img.style.background = '';
+  img.alt = 'Sample Image';
+  img.src = resolved;
+
+  img.onerror = function(ev) {
+    console.warn('[sample image] failed to load:', resolved, ev);
+    showSamplePlaceholder(img, 'Sample image failed to load');
+    const modalImg = document.getElementById('sampleModalImg');
+    if (modalImg && modalImg.src === resolved) modalImg.src = '';
+  };
+
+  img.onload = function() {
+    const meta = document.getElementById('sample_meta');
+    if (meta && meta.textContent === 'Sample image not available') meta.textContent = '';
+  };
+}
+
+function openLargePreview(src){
+  if (!src) return;
+  const modalImg = document.getElementById('sampleModalImg');
+  modalImg.onerror = () => { console.warn('[sampleModalImg] modal failed to load:', modalImg.src); modalImg.src = ''; };
+  modalImg.src = resolveImagePath(src);
+  const modal = new bootstrap.Modal(document.getElementById('sampleModal'));
+  modal.show();
+}
+
+
+  sampleImage.addEventListener('click', () => {
+    const cur = sampleImage.getAttribute('src') || sampleImage.src || '';
+    if (!cur) return;
+    openLargePreview(cur);
+  });
+
+  // ---------- Populate subtasks from server-provided model & stage ----------
+  (function populateSubtasks() {
+    const model = "{{ model_name }}";
+    const stage = "{{ stage }}";
+    subtaskSelect.innerHTML = '<option value="">-- Select Subtask --</option>';
+    if (model && stage && orings_data && orings_data[model] && orings_data[model][stage]) {
+      const subtasks = orings_data[model][stage];
+      subtasks.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s.subtask;
+        opt.textContent = `Sub-Task ${s.subtask} • ${s.description || ''}`;
+        opt.dataset.item = JSON.stringify(s);
+        subtaskSelect.appendChild(opt);
+      });
+      // if server passed a subtask to preselect, try to select it
+      const preselected = "{{ subtask | default('', true) }}";
+      if (preselected) {
+        setTimeout(()=>{
+          const o = Array.from(subtaskSelect.options).find(x => x.value == preselected);
+          if (o) { o.selected = true; subtaskSelect.dispatchEvent(new Event('change')); }
+        }, 20);
+      }
+    }
+  })();
+
+  // ---------- Camera logic (unchanged) ----------
+  async function startCamera() {
+    spinner.style.display = 'flex';
+    if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+
+    const tryConstraints = async (constraints) => {
+      try { return await navigator.mediaDevices.getUserMedia(constraints); } catch(e){ return null; }
+    };
+
+    stream = await tryConstraints({ video: { facingMode: { exact: facingMode } }, audio: false })
+          || await tryConstraints({ video: { facingMode: facingMode }, audio: false })
+          || await tryConstraints({ video: true, audio: false });
+
+    if (stream) {
+      video.srcObject = stream;
+      video.play();
+      video.style.display = '';
+      capturedPreview.style.display = 'none';
+    } else {
+      video.style.display = 'none';
+    }
+    setTimeout(()=> spinner.style.display = 'none', 350);
+  }
+
+  startCamera();
+
+  flipButton.addEventListener('click', async () => {
+    facingMode = (facingMode === 'environment') ? 'user' : 'environment';
+    await startCamera();
+  });
+
+  captureButton.addEventListener('click', () => {
+    if (!stream) return alert('Camera not available.');
+
+    const track = stream.getVideoTracks()[0];
+    const settings = track.getSettings ? track.getSettings() : {};
+    const w = settings.width || video.videoWidth || 1280;
+    const h = settings.height || video.videoHeight || 720;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+    capturedPreview.src = dataUrl;
+    capturedPreview.style.display = '';
+    video.style.display = 'none';
+    imageData.value = dataUrl;
+
+    canvas.toBlob(blob => {
+      const file = new File([blob], 'capture.jpg', { type: 'image/jpeg' });
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      imageInput.files = dt.files;
+      addThumbnail(dataUrl);
+    }, 'image/jpeg', 0.9);
+
+    retakeButton.style.display = '';
+    captureButton.style.display = 'none';
+  });
+
+  retakeButton.addEventListener('click', () => {
+    capturedPreview.style.display = 'none';
+    video.style.display = '';
+    imageData.value = '';
+    imageInput.value = '';
+    retakeButton.style.display = 'none';
+    captureButton.style.display = '';
+  });
+
+  imageInput.addEventListener('change', (e) => {
+    const f = e.target.files && e.target.files[0];
+    if (!f) return;
+    const url = URL.createObjectURL(f);
+    capturedPreview.src = url;
+    capturedPreview.style.display = '';
+    video.style.display = 'none';
+    retakeButton.style.display = '';
+    captureButton.style.display = 'none';
+    imageData.value = '';
+    addThumbnail(url, false);
+  });
+
+  function addThumbnail(src){
+    const img = document.createElement('img');
+    img.src = src;
+    img.className = 'thumb';
+    img.loading = 'lazy';
+    img.addEventListener('click', () => openLargePreview(src));
+    thumbnailRow.prepend(img);
+    while (thumbnailRow.children.length > 6) thumbnailRow.removeChild(thumbnailRow.lastChild);
+  }
+
+  // ---------- Safe subtask change handler (uses setSampleImage) ----------
+  subtaskSelect.addEventListener('change', () => {
+    const opt = subtaskSelect.selectedOptions[0];
+    if (!opt || !opt.dataset.item) {
+      if (subtaskDescription) subtaskDescription.innerText = '';
+      if (requiredOrings) requiredOrings.innerText = '';
+      setSampleImage('');
+      if (sampleMeta) sampleMeta.textContent = '';
+      return;
+    }
+
+    const s = JSON.parse(opt.dataset.item);
+    if (subtaskDescription) subtaskDescription.innerText = s.description || '';
+    if (requiredOrings) requiredOrings.innerText = s.required_orings || '-';
+
+    // Safe setter (normalizes path + encodes + onerror fallback)
+    setSampleImage(s.sample_image || '');
+    if (sampleMeta) sampleMeta.textContent = `Subtask: ${s.subtask}`;
+  });
+
+  // ---------- Validation ----------
+  document.getElementById('nextForm').addEventListener('submit', function(e){
+    if(!subtaskSelect.value){
+      e.preventDefault(); alert('Please select a subtask.'); return false;
+    }
+    const hasImage = !!imageData.value || (imageInput.files && imageInput.files.length > 0);
+    if(!hasImage){
+      e.preventDefault(); alert('Please capture or upload an image before submitting.'); return false;
+    }
+    return true;
+  });
+
+  // optional: select subtask from query param if present
+  (function prefillFromQuery(){
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if(params.has('subtask')){
+        const s = params.get('subtask');
+        for(const opt of subtaskSelect.options){
+          if(opt.value === s){ opt.selected = true; opt.dispatchEvent(new Event('change')); break; }
+        }
+      }
+    } catch(e){}
+  })();
+</script>
+
+<!-- Bootstrap bundle -->
+<script src="../static/bootstrap-5.3.8-dist/bootstrap.bundle.min.js"></script>
+</body>
+</html>

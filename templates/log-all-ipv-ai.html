@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>O-Ring Assembly - Logs</title>
+    <link rel="stylesheet" href="../static/bootstrap-5.3.8-dist/css/bootstrap.min.css">
+    <style>
+        .filter-container {
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <a href="javascript:history.back()">🔙 Go Back</a>
+        <h2 class="text-center">Internal Parts Verification Logs</h2>
+
+        <!-- Filter Inputs Row -->
+        <div class="row mb-3">
+            <!-- Search Order Number -->
+            <div class="col-md-3 mb-3">
+                <input type="text" id="searchOrderNumber" class="form-control" placeholder="Search Order Number..." onkeyup="filterLogsTable()">
+            </div>
+    
+            <!-- Model Filter (distinct values) -->
+            <div class="col-md-3 mb-3">
+                <select id="searchModel" class="form-control" onchange="filterLogsTable()">
+                    <option value="">Select Model</option>
+                    {% for log in logs|map(attribute='model')|unique %}
+                        <option value="{{ log }}">{{ log }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+    
+            <!-- Employee Filter (distinct values) -->
+            <div class="col-md-3 mb-3">
+                <select id="searchEmployee" class="form-control" onchange="filterLogsTable()">
+                    <option value="">Select Employee ID</option>
+                    {% for log in logs|map(attribute='employee_id')|unique %}
+                        <option value="{{ log }}">{{ log }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+    
+            <!-- Stage Filter (distinct values) -->
+            <div class="col-md-3 mb-3">
+                <select id="searchStage" class="form-control" onchange="filterLogsTable()">
+                    <option value="">Select Stage</option>
+                    {% for log in logs|map(attribute='stage')|unique %}
+                        <option value="{{ log }}">{{ log }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+    
+        <div class="row mb-3">
+            <!-- Sub-task Filter (distinct values) -->
+            <div class="col-md-3 mb-3">
+                <select id="searchSubtask" class="form-control" onchange="filterLogsTable()">
+                    <option value="">Select Sub-task</option>
+                    {% for log in logs|map(attribute='subtask')|unique %}
+                        <option value="{{ log }}">{{ log }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+    
+ 
+    
+        <table class="table table-bordered" id="logsTable">
+            <thead>
+                <tr>
+                    <th>Order Number</th>
+                    <th>Employee ID</th>
+                    <th>Model</th>
+                    <th>Stage</th>
+                    <th>Sub-task</th>
+                    <th>Status</th>
+                    <th>Date & Time</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="logsTableBody">
+                {% for log in logs %}
+                <tr>
+                    <td class="order-number">{{ log.order_number }}</td>
+                    <td>{{ log.employee_id }}</td>
+                    <td>{{ log.model }}</td>
+                    <td>{{ log.stage }}</td>
+                    <td>{{ log.subtask }}</td>
+                    <td>{{ log.status }}</td>
+                    <td>{{ log.created_at}}</td>
+                    <td>
+                        {% set is_highest_subtask = true %}
+                        {% for other_log in logs %}
+                            {% if other_log.order_number == log.order_number and 
+                                other_log.model == log.model and 
+                                other_log.stage == log.stage and 
+                                other_log.status == log.status and 
+                                other_log.subtask > log.subtask %}
+                                {% set is_highest_subtask = false %}
+                            {% endif %}
+                        {% endfor %}
+                        {% if is_highest_subtask and log.status != 'fail' %}
+                        <form action="{{ url_for('orings.generate_overall_pdf') }}" method="POST" class="d-inline">
+                            <input type="hidden" name="order_number" value="{{ log.order_number }}">
+                            <input type="hidden" name="model_name" value="{{ log.model }}">
+                            <input type="hidden" name="stage" value="{{ log.stage }}">
+                            <button type="submit" class="btn btn-primary w-100">Generate PDF</button>
+                        </form>
+                        {% endif %}
+                        
+                        <form action="{{ url_for('orings.nxt_task', subtask=(log.subtask | int) + (1 if log.status == 'pass' else 0), order_number=log.order_number, employee_id=log.employee_id, model_name=log.model, stage=log.stage) }}" method="GET" class="d-inline">
+                            <button type="submit" class="btn btn-success mt-2 w-100">Resume Task</button>
+                        </form>
+                        <form action="{{ url_for('orings.update_status_by_approval', subtask=log.subtask|int, order_number=log.order_number, employee_id=log.employee_id, model=log.model, stage=log.stage, status=('pass' if log.status == 'fail' else 'fail')) }}" method="GET" class="d-inline">
+                            <button type="submit" class="btn btn-warning mt-2 w-100">
+                                {% if log.status == 'fail' %}
+                                    ✅ Mark as Pass
+                                {% else %}
+                                    ❌ Mark as Fail
+                                {% endif %}
+                            </button>
+                        </form> 
+                        <form action="{{ url_for('orings.view_task_image', order_number=log.order_number, model=log.model, stage=log.stage, subtask=log.subtask, employee_id=log.employee_id) }}" method="GET" class="d-inline">
+                            <button type="submit" class="btn btn-info w-100 mt-2">📷 View Image</button>
+                        </form>
+                                              
+
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            // Extract order_number from URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const orderNumberParam = urlParams.get('order_number');
+    
+            if (orderNumberParam) {
+                document.getElementById("searchOrderNumber").value = orderNumberParam;
+            }
+    
+            filterLogsTable();
+    
+            // Attach event listeners to each filter input field
+            document.getElementById("searchOrderNumber").addEventListener("keyup", filterLogsTable);
+            document.getElementById("searchModel").addEventListener("change", filterLogsTable);
+            document.getElementById("searchEmployee").addEventListener("change", filterLogsTable);
+            document.getElementById("searchStage").addEventListener("change", filterLogsTable);
+            document.getElementById("searchSubtask").addEventListener("change", filterLogsTable);
+        });
+    
+        function filterLogsTable() {
+            let orderNumberFilter = document.getElementById("searchOrderNumber").value.toLowerCase();
+            let modelFilter = document.getElementById("searchModel").value.toLowerCase();
+            let employeeFilter = document.getElementById("searchEmployee").value.toLowerCase();
+            let stageFilter = document.getElementById("searchStage").value.toLowerCase();
+            let subtaskFilter = document.getElementById("searchSubtask").value.toLowerCase();
+    
+            let tableBody = document.getElementById("logsTableBody");
+    
+            if (!tableBody) {
+                console.error("logsTableBody not found");
+                return;
+            }
+    
+            let rows = tableBody.getElementsByTagName("tr");
+    
+            for (let i = 0; i < rows.length; i++) {
+                let orderNumberCell = rows[i].querySelector(".order-number");
+                let modelCell = rows[i].querySelector("td:nth-child(3)");
+                let employeeCell = rows[i].querySelector("td:nth-child(2)");
+                let stageCell = rows[i].querySelector("td:nth-child(4)");
+                let subtaskCell = rows[i].querySelector("td:nth-child(5)");
+    
+                let orderNumber = orderNumberCell ? orderNumberCell.textContent.toLowerCase() : '';
+                let model = modelCell ? modelCell.textContent.toLowerCase() : '';
+                let employee = employeeCell ? employeeCell.textContent.toLowerCase() : '';
+                let stage = stageCell ? stageCell.textContent.toLowerCase() : '';
+                let subtask = subtaskCell ? subtaskCell.textContent.toLowerCase() : '';
+    
+                // Hide row if it doesn't match the filters
+                if (orderNumber.includes(orderNumberFilter) &&
+                    (modelFilter === "" || model.includes(modelFilter)) &&
+                    (employeeFilter === "" || employee.includes(employeeFilter)) &&
+                    (stageFilter === "" || stage.includes(stageFilter)) &&
+                    (subtaskFilter === "" || subtask.includes(subtaskFilter))) {
+                    rows[i].style.display = "";
+                } else {
+                    rows[i].style.display = "none";
+                }
+            }
+        }
+    </script>
+    
+            
+    
+
+
+    
+</body>
+</html>

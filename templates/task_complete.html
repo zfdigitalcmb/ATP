@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Completed</title>
+</head>
+<body>
+    <h1>All Subtasks Completed</h1>
+    <p>Order Number: {{ order_number }}</p>
+    <p>Employee ID: {{ employee_id }}</p>
+    <p>Model Name: {{ model_name }}</p>
+
+    <p>All subtasks have been completed successfully.</p>
+
+    <!-- Button to generate a PDF -->
+    <form action="{{ url_for('orings.generate_overall_pdf') }}" method="POST">
+        <input type="hidden" name="order_number" value="{{ order_number }}">
+        <input type="hidden" name="model_name" value="{{ model_name }}">
+        <input type="hidden" name="stage" value="Assembly Stage">
+        <!-- <button type="submit" class="btn btn-primary">Generate Overall PDF</button> -->
+    </form>
+    
+</body>
+</html>

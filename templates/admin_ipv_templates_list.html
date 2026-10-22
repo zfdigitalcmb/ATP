@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container py-3">
+  <h3>IPV AI Templates</h3>
+  <p><a class="btn btn-primary" href="{{ url_for('admin_ipv.create_template') }}">+ New Template</a></p>
+
+  <table class="table table-sm table-striped">
+    <thead>
+      <tr><th>ID</th><th>Model</th><th>Stage</th><th>Subtask</th><th>Req</th><th>YOLO</th><th>Actions</th></tr>
+    </thead>
+    <tbody>
+    {% for t in templates %}
+      <tr>
+        <td>{{ t.id }}</td>
+        <td>{{ t.model }}</td>
+        <td>{{ t.stage }}</td>
+        <td>{{ t.subtask }}</td>
+        <td>{{ t.required_orings }}</td>
+        <td>{{ t.model_yolo or '' }}</td>
+        <td>
+          <a class="btn btn-sm btn-outline-primary" href="{{ url_for('admin_ipv.edit_template', tpl_id=t.id) }}">Edit</a>
+          <form style="display:inline" method="post" action="{{ url_for('admin_ipv.delete_template', tpl_id=t.id) }}" onsubmit="return confirm('Delete template?');">
+            <button class="btn btn-sm btn-outline-danger">Delete</button>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

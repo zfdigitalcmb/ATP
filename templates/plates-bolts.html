@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Bolt Detection Analyzer</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 2rem; background: #f4f4f4; }
+    #result { margin-top: 2rem; padding: 1rem; background: #fff; border-radius: 8px; }
+    .status-ok { color: green; font-weight: bold; }
+    .status-nok { color: red; font-weight: bold; }
+    .status-wip { color: orange; font-weight: bold; }
+  </style>
+</head>
+<body>
+
+  <h1>Bolt Detection Analyzer </h1>
+  <p>v.b.32</p>
+
+  <form id="uploadForm">
+    <label for="imageInput">Upload Bolt Stand Image:</label><br><br>
+    <input type="file" id="imageInput" name="image" accept="image/*" required />
+    <br><br>
+    <button type="submit">Analyze</button>
+  </form>
+
+  <div id="result" style="display:none;">
+    <h2>Analysis Result</h2>
+    <p><strong>Total Bolts Detected:</strong> <span id="boltCount"></span></p>
+    <p><strong>Stand Status:</strong> <span id="standStatus"></span></p>
+    <ul id="setStatusList"></ul>
+  </div>
+
+  <script>
+    const form = document.getElementById("uploadForm");
+    const resultBox = document.getElementById("result");
+    const boltCountSpan = document.getElementById("boltCount");
+    const standStatusSpan = document.getElementById("standStatus");
+    const setStatusList = document.getElementById("setStatusList");
+
+    form.addEventListener("submit", async function (e) {
+      e.preventDefault();
+
+      const formData = new FormData(form);
+
+      const res = await fetch("/analyze", {
+        method: "POST",
+        body: formData
+      });
+
+      const data = await res.json();
+
+      boltCountSpan.textContent = data.bolt_count;
+
+      if (data.stand_status === "OK") {
+        standStatusSpan.textContent = "OK";
+        standStatusSpan.className = "status-ok";
+      } else {
+        standStatusSpan.textContent = "NOK";
+        standStatusSpan.className = "status-nok";
+      }
+
+      setStatusList.innerHTML = "";
+      data.set_status.forEach(status => {
+        const li = document.createElement("li");
+        if (status.includes("OK")) {
+          li.className = "status-ok";
+        } else if (status.includes("NOK")) {
+          li.className = "status-nok";
+        } else {
+          li.className = "status-wip";
+        }
+        li.textContent = status;
+        setStatusList.appendChild(li);
+      });
+
+      resultBox.style.display = "block";
+    });
+  </script>
+
+</body>
+</html>

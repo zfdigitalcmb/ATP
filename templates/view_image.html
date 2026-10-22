@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>View Task Image</title>
+</head>
+<body>
+    <h2>Task Image</h2>
+    {% if image_url %}
+        <img src="{{ image_url }}" alt="Task Image" style="width:100%; max-width:500px; border:1px solid #ddd; border-radius:5px;">
+    {% else %}
+        <p>No image found for this task.</p>
+    {% endif %}
+    <br>
+    <a href="javascript:history.back()">🔙 Go Back</a>
+</body>
+</html>
